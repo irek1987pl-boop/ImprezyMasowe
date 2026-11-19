@@ -1,0 +1,2060 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  
+  <!-- Konfiguracja PWA i natywnego trybu pełnoekranowego dla iPhone'a (iOS Safari) -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Imprezy Masowe" />
+  <meta name="theme-color" content="#F2F2F7" />
+  <meta name="format-detection" content="telephone=no" />
+
+  <title>Terminarz Imprez Masowych</title>
+
+  <!-- Ikona aplikacji na ekran główny iPhone'a (Apple Touch Icon jako zakodowany SVG) -->
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%23007AFF'/%3E%3Cstop offset='100%25' stop-color='%230051D5'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='180' height='180' rx='40' fill='url(%23g)'/%3E%3Crect x='34' y='44' width='112' height='98' rx='18' fill='white' fill-opacity='0.95'/%3E%3Crect x='34' y='44' width='112' height='28' rx='12' fill='%23FF3B30'/%3E%3Ccircle cx='62' cy='42' r='6' fill='%23E5E5EA'/%3E%3Ccircle cx='118' cy='42' r='6' fill='%23E5E5EA'/%3E%3Cpath d='M64 102l16 16 36-36' stroke='%2334C759' stroke-width='11' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', 'Inter', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            ios: {
+              bg: '#F2F2F7',
+              card: '#FFFFFF',
+              blue: '#007AFF',
+              green: '#34C759',
+              orange: '#FF9500',
+              red: '#FF3B30',
+              gray: '#8E8E93',
+              separator: '#C6C6C8',
+              fill: '#E5E5EA'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Natywne odczucia iOS na iPhonie */
+    * {
+      -webkit-tap-highlight-color: transparent;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      background-color: #F2F2F7;
+      color: #1C1C1E;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
+      overscroll-behavior-y: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Obsługa wycięcia (notch / Dynamic Island) oraz dolnego paska Home na iPhonie */
+    .safe-top {
+      padding-top: max(12px, env(safe-area-inset-top));
+    }
+    .safe-bottom {
+      padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+
+    /* Ukrycie paska przewijania przy poziomych filtrach KPI */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* Animacje wysuwanych arkuszy iOS (Bottom Sheets) */
+    .sheet-backdrop {
+      transition: opacity 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .sheet-panel {
+      transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
+      will-change: transform;
+    }
+    .sheet-hidden .sheet-backdrop {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .sheet-hidden .sheet-panel {
+      transform: translateY(100%);
+    }
+
+    /* Przełącznik typu iOS Switch */
+    .ios-switch {
+      appearance: none;
+      width: 51px;
+      height: 31px;
+      background-color: #E5E5EA;
+      border-radius: 9999px;
+      position: relative;
+      cursor: pointer;
+      transition: background-color 0.22s ease;
+      flex-shrink: 0;
+    }
+    .ios-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 27px;
+      height: 27px;
+      background-color: #FFFFFF;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18), 0 1px 1px rgba(0, 0, 0, 0.08);
+      transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .ios-switch:checked {
+      background-color: #34C759;
+    }
+    .ios-switch:checked::after {
+      transform: translateX(20px);
+    }
+
+    /* Natywny wygląd pól daty na iOS */
+    input[type="date"] {
+      -webkit-appearance: none;
+      min-height: 40px;
+    }
+
+    /* Mikro-animacja kliknięcia */
+    .ios-press:active {
+      transform: scale(0.97);
+      opacity: 0.85;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- =====================================================================
+       GÓRNY NAGŁÓWEK iOS (Sticky + Translucent Blur)
+       ===================================================================== -->
+  <header class="sticky top-0 z-30 bg-[#F2F2F7]/85 backdrop-blur-xl border-b border-black/[0.06] safe-top">
+    <div class="max-w-2xl mx-auto px-4 pt-1 pb-3">
+      
+      <!-- Górny rząd: Tytuł + Przyciski akcji -->
+      <div class="flex items-center justify-between gap-2 mb-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-[26px] font-bold tracking-tight text-[#1C1C1E] leading-tight">
+              Imprezy Masowe
+            </h1>
+            <span id="headerYearBadge" class="text-xs font-semibold px-2 py-0.5 rounded-full bg-black/[0.06] text-[#636366]">
+              0
+            </span>
+          </div>
+          <p id="todaySubtitle" class="text-xs text-[#8E8E93] font-medium mt-0.5">
+            Ładowanie kalendarza...
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <!-- Przycisk Kopii Zapasowej / Eksportu / CSV -->
+          <button
+            type="button"
+            onclick="openBackupSheet()"
+            aria-label="Kopia zapasowa i eksport"
+            class="ios-press h-10 w-10 rounded-full bg-white shadow-sm border border-black/[0.05] flex items-center justify-center text-[#007AFF] active:bg-gray-100"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+          </button>
+
+          <!-- Przycisk Dodaj Nową Imprezę -->
+          <button
+            type="button"
+            onclick="openEventSheet()"
+            class="ios-press h-10 px-4 rounded-full bg-[#007AFF] text-white font-semibold text-[15px] shadow-sm shadow-blue-500/25 flex items-center gap-1.5"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            <span>Dodaj</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Pasek Wyszukiwania w stylu iOS -->
+      <div class="relative mb-2.5">
+        <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none text-[#8E8E93]">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+          </svg>
+        </div>
+        <input
+          id="searchInput"
+          type="search"
+          placeholder="Szukaj imprezy, obiektu lub notatki..."
+          oninput="handleSearch(this.value)"
+          class="w-full h-10 pl-9 pr-9 rounded-xl bg-[#E3E3E8]/90 text-[15px] text-[#1C1C1E] placeholder-[#8E8E93] focus:outline-none focus:ring-2 focus:ring-[#007AFF]/40 focus:bg-white transition-all"
+        />
+        <button
+          id="clearSearchBtn"
+          type="button"
+          onclick="clearSearch()"
+          class="hidden absolute inset-y-0 right-2.5 flex items-center text-[#8E8E93] hover:text-[#1C1C1E] px-1"
+          aria-label="Wyczyść wyszukiwanie"
+        >
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Pasek KPI (Klikalne filtry statusów) -->
+      <div id="kpiStrip" class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+        <!-- Renderowane dynamicznie przez JS -->
+      </div>
+
+      <!-- Pasek Sortowania + Szybki skok do miesiąca -->
+      <div class="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-black/[0.05]">
+        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <span class="text-[11px] font-semibold uppercase tracking-wider text-[#8E8E93] mr-0.5 shrink-0">Sortuj:</span>
+          <button
+            type="button"
+            data-sort="urgent"
+            onclick="setSort('urgent')"
+            class="sort-btn px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors shrink-0"
+          >
+            Najpilniejszy termin
+          </button>
+          <button
+            type="button"
+            data-sort="date_asc"
+            onclick="setSort('date_asc')"
+            class="sort-btn px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors shrink-0"
+          >
+            Data ↑
+          </button>
+          <button
+            type="button"
+            data-sort="date_desc"
+            onclick="setSort('date_desc')"
+            class="sort-btn px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors shrink-0"
+          >
+            Data ↓
+          </button>
+        </div>
+
+        <!-- Filtr roku (przydatny przy 130 imprezach rocznie) -->
+        <select
+          id="yearFilterSelect"
+          onchange="setYearFilter(this.value)"
+          aria-label="Filtruj według roku"
+          class="text-xs font-semibold text-[#007AFF] bg-white/90 border border-black/[0.08] rounded-lg px-2 py-1 focus:outline-none shrink-0"
+        >
+          <option value="all">Wszystkie lata</option>
+        </select>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- =====================================================================
+       GŁÓWNA LISTA IMPREZ (Grupowana po Miesiącach i Latach)
+       ===================================================================== -->
+  <main class="flex-1 max-w-2xl w-full mx-auto px-4 pt-3 pb-24">
+    <div id="eventsContainer" class="space-y-6">
+      <!-- Renderowane dynamicznie przez JS -->
+    </div>
+  </main>
+
+  <!-- =====================================================================
+       POWIADOMIENIE TOAST (Zamiast alert())
+       ===================================================================== -->
+  <div
+    id="toastBanner"
+    class="fixed top-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 -translate-y-4 transition-all duration-300 max-w-[92vw]"
+  >
+    <div class="bg-[#1C1C1E]/95 backdrop-blur-md text-white text-sm font-medium px-4 py-2.5 rounded-full shadow-lg flex items-center gap-2">
+      <span id="toastIcon" class="text-[#34C759]">✓</span>
+      <span id="toastText">Zapisano zmiany</span>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       SHEET 1: DODAWANIE / EDYCJA IMPREZY (iOS Bottom Sheet)
+       ===================================================================== -->
+  <div id="eventSheet" class="fixed inset-0 z-40 sheet-hidden" aria-hidden="true">
+    <!-- Tło przyciemniające -->
+    <div onclick="closeEventSheet()" class="sheet-backdrop fixed inset-0 bg-black/40 backdrop-blur-[2px]"></div>
+
+    <!-- Wysuwany panel -->
+    <div class="sheet-panel fixed inset-x-0 bottom-0 max-h-[92vh] bg-[#F2F2F7] rounded-t-[24px] shadow-2xl flex flex-col max-w-2xl mx-auto">
+      
+      <!-- Uchwyt iOS (Grabber) -->
+      <div class="pt-2.5 pb-1 flex justify-center shrink-0">
+        <div class="w-10 h-1.5 rounded-full bg-[#C6C6C8]"></div>
+      </div>
+
+      <!-- Nagłówek modala -->
+      <div class="px-4 py-2.5 flex items-center justify-between border-b border-black/[0.08] shrink-0">
+        <button
+          type="button"
+          onclick="closeEventSheet()"
+          class="text-[16px] text-[#007AFF] font-normal px-1 py-1 active:opacity-60"
+        >
+          Anuluj
+        </button>
+        <h2 id="eventSheetTitle" class="text-[17px] font-semibold text-[#1C1C1E]">
+          Nowa impreza
+        </h2>
+        <button
+          type="button"
+          onclick="saveEventForm()"
+          class="text-[16px] text-[#007AFF] font-semibold px-1 py-1 active:opacity-60"
+        >
+          Zapisz
+        </button>
+      </div>
+
+      <!-- Treść formularza -->
+      <form id="eventForm" onsubmit="event.preventDefault(); saveEventForm();" class="overflow-y-auto px-4 py-4 space-y-5 safe-bottom">
+        <input type="hidden" id="editEventId" />
+
+        <!-- Komunikat walidacji wewnątrz arkusza -->
+        <div id="formErrorBox" class="hidden bg-[#FF3B30]/10 border border-[#FF3B30]/30 text-[#FF3B30] text-sm font-medium px-3.5 py-2.5 rounded-xl">
+        </div>
+
+        <!-- Sekcja 1: Podstawowe dane imprezy -->
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-[#636366] px-3 mb-1.5">
+            Dane wydarzenia
+          </p>
+          <div class="bg-white rounded-2xl divide-y divide-black/[0.06] shadow-xs overflow-hidden">
+            <div class="px-3.5 py-3">
+              <label for="inputName" class="block text-xs font-medium text-[#8E8E93] mb-1">
+                Nazwa imprezy masowej *
+              </label>
+              <input
+                id="inputName"
+                type="text"
+                required
+                placeholder="np. Mecz Pogoń – Legia lub Koncert"
+                class="w-full text-[16px] text-[#1C1C1E] placeholder-[#C7C7CC] focus:outline-none"
+              />
+            </div>
+
+            <div class="px-3.5 py-3">
+              <label for="inputVenue" class="block text-xs font-medium text-[#8E8E93] mb-1">
+                Miejsce / Obiekt (opcjonalnie)
+              </label>
+              <input
+                id="inputVenue"
+                type="text"
+                placeholder="np. Netto Arena, ERGO ARENA, Stadion..."
+                class="w-full text-[16px] text-[#1C1C1E] placeholder-[#C7C7CC] focus:outline-none"
+              />
+            </div>
+
+            <div class="px-3.5 py-3">
+              <div class="flex items-center justify-between gap-2">
+                <label for="inputEventDate" class="text-[15px] font-medium text-[#1C1C1E]">
+                  Data imprezy *
+                </label>
+                <input
+                  id="inputEventDate"
+                  type="date"
+                  required
+                  onchange="updateFormPreview()"
+                  class="text-[15px] font-semibold text-[#007AFF] bg-[#F2F2F7] px-3 py-1.5 rounded-xl focus:outline-none"
+                />
+              </div>
+              <p id="previewSubmissionDeadline" class="text-xs text-[#636366] mt-2">
+                Wybierz datę imprezy, aby wyliczyć termin 30 dni na złożenie wniosku.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sekcja 2: Złożenie dokumentów (uruchamia licznik 14 dni i 30 dni) -->
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-[#636366] px-3 mb-1.5">
+            Złożenie dokumentacji w urzędzie
+          </p>
+          <div class="bg-white rounded-2xl p-3.5 shadow-xs space-y-2.5">
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+              <label for="inputSubmissionDate" class="text-[15px] font-medium text-[#1C1C1E]">
+                Data złożenia
+              </label>
+              <div class="flex items-center gap-1.5">
+                <input
+                  id="inputSubmissionDate"
+                  type="date"
+                  onchange="updateFormPreview()"
+                  class="text-[15px] font-semibold text-[#1C1C1E] bg-[#F2F2F7] px-3 py-1.5 rounded-xl focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onclick="setTodayInInput('inputSubmissionDate')"
+                  class="px-2.5 py-2 rounded-xl bg-[#007AFF]/10 text-[#007AFF] text-xs font-semibold active:bg-[#007AFF]/20"
+                >
+                  Dziś
+                </button>
+                <button
+                  type="button"
+                  onclick="clearDateInput('inputSubmissionDate')"
+                  class="px-2.5 py-2 rounded-xl bg-[#F2F2F7] text-[#8E8E93] text-xs font-semibold active:bg-gray-200"
+                >
+                  Wyczyść
+                </button>
+              </div>
+            </div>
+            <div id="previewPostSubmission" class="text-xs text-[#636366] bg-[#F2F2F7]/70 rounded-xl p-2.5">
+              Wpisz datę złożenia dokumentów, aby uruchomić odliczanie 14 dni (opinie służb) oraz 30 dni (decyzja).
+            </div>
+          </div>
+        </div>
+
+        <!-- Sekcja 3: Opinie 4 służb (14 dni) -->
+        <div>
+          <div class="flex items-center justify-between px-3 mb-1.5">
+            <p class="text-xs font-semibold uppercase tracking-wider text-[#636366]">
+              Otrzymane opinie służb (14 dni)
+            </p>
+            <span id="formOpinionsCounter" class="text-xs font-semibold text-[#007AFF]">0/4</span>
+          </div>
+          <div class="bg-white rounded-2xl divide-y divide-black/[0.06] shadow-xs overflow-hidden">
+            <label class="flex items-center justify-between px-3.5 py-3 cursor-pointer">
+              <div>
+                <span class="text-[15px] font-medium text-[#1C1C1E] block">Policja</span>
+                <span class="text-xs text-[#8E8E93]">Opinia Komendanta Miejskiego / Powiatowego</span>
+              </div>
+              <input type="checkbox" id="chkPolicja" onchange="updateFormOpinionsCount()" class="ios-switch" />
+            </label>
+
+            <label class="flex items-center justify-between px-3.5 py-3 cursor-pointer">
+              <div>
+                <span class="text-[15px] font-medium text-[#1C1C1E] block">Państwowa Straż Pożarna (PSP)</span>
+                <span class="text-xs text-[#8E8E93]">Opinia Komendanta PSP</span>
+              </div>
+              <input type="checkbox" id="chkPsp" onchange="updateFormOpinionsCount()" class="ios-switch" />
+            </label>
+
+            <label class="flex items-center justify-between px-3.5 py-3 cursor-pointer">
+              <div>
+                <span class="text-[15px] font-medium text-[#1C1C1E] block">Ratownictwo Medyczne (ZRM)</span>
+                <span class="text-xs text-[#8E8E93]">Opinia dysponenta zespołów ratownictwa</span>
+              </div>
+              <input type="checkbox" id="chkZrm" onchange="updateFormOpinionsCount()" class="ios-switch" />
+            </label>
+
+            <label class="flex items-center justify-between px-3.5 py-3 cursor-pointer">
+              <div>
+                <span class="text-[15px] font-medium text-[#1C1C1E] block">Sanepid (PPIS)</span>
+                <span class="text-xs text-[#8E8E93]">Opinia Inspektora Sanitarnego</span>
+              </div>
+              <input type="checkbox" id="chkSanepid" onchange="updateFormOpinionsCount()" class="ios-switch" />
+            </label>
+          </div>
+        </div>
+
+        <!-- Sekcja 4: Decyzja końcowa (30 dni) -->
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-[#636366] px-3 mb-1.5">
+            Decyzja administracyjna (30 dni)
+          </p>
+          <div class="bg-white rounded-2xl divide-y divide-black/[0.06] shadow-xs overflow-hidden">
+            <label class="flex items-center justify-between px-3.5 py-3 cursor-pointer">
+              <div>
+                <span class="text-[15px] font-medium text-[#1C1C1E] block">Decyzja otrzymana</span>
+                <span class="text-xs text-[#8E8E93]">Zezwolenie na przeprowadzenie imprezy masowej</span>
+              </div>
+              <input type="checkbox" id="chkDecision" onchange="toggleDecisionDateRow()" class="ios-switch" />
+            </label>
+
+            <div id="decisionDateRow" class="hidden px-3.5 py-3 flex items-center justify-between gap-2">
+              <label for="inputDecisionDate" class="text-sm font-medium text-[#1C1C1E]">
+                Data otrzymania decyzji
+              </label>
+              <div class="flex items-center gap-1.5">
+                <input
+                  id="inputDecisionDate"
+                  type="date"
+                  class="text-sm font-semibold text-[#34C759] bg-[#F2F2F7] px-2.5 py-1.5 rounded-xl focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onclick="setTodayInInput('inputDecisionDate')"
+                  class="px-2.5 py-1.5 rounded-xl bg-[#34C759]/15 text-[#248A3D] text-xs font-semibold"
+                >
+                  Dziś
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sekcja 5: Notatka -->
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-[#636366] px-3 mb-1.5">
+            Notatka / Uwagi
+          </p>
+          <div class="bg-white rounded-2xl p-3.5 shadow-xs">
+            <textarea
+              id="inputNote"
+              rows="2"
+              placeholder="Np. sygnatura sprawy, liczba uczestników, uwagi do dokumentacji..."
+              class="w-full text-[15px] text-[#1C1C1E] placeholder-[#C7C7CC] focus:outline-none resize-none"
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- Przycisk usuwania (widoczny tylko podczas edycji, z dwustopniowym potwierdzeniem bez confirm()) -->
+        <div id="deleteSection" class="hidden pt-1">
+          <button
+            id="deleteBtnInitial"
+            type="button"
+            onclick="showDeleteConfirm()"
+            class="w-full py-3.5 rounded-2xl bg-white text-[#FF3B30] font-semibold text-[16px] shadow-xs active:bg-red-50"
+          >
+            Usuń tę imprezę
+          </button>
+          <div id="deleteBtnConfirm" class="hidden bg-white rounded-2xl p-3.5 shadow-xs border border-[#FF3B30]/30 space-y-2.5">
+            <p class="text-sm text-center font-medium text-[#1C1C1E]">
+              Czy na pewno trwale usunąć tę imprezę?
+            </p>
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onclick="hideDeleteConfirm()"
+                class="py-2.5 rounded-xl bg-[#F2F2F7] text-[#1C1C1E] font-semibold text-sm"
+              >
+                Anuluj
+              </button>
+              <button
+                type="button"
+                onclick="confirmDeleteEvent()"
+                class="py-2.5 rounded-xl bg-[#FF3B30] text-white font-semibold text-sm"
+              >
+                Tak, usuń
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       SHEET 2: SZYBKIE WPISANIE DATY ZŁOŻENIA DOKUMENTÓW (1 kliknięcie z karty)
+       ===================================================================== -->
+  <div id="quickSubmitSheet" class="fixed inset-0 z-40 sheet-hidden" aria-hidden="true">
+    <div onclick="closeQuickSubmitSheet()" class="sheet-backdrop fixed inset-0 bg-black/40 backdrop-blur-[2px]"></div>
+    <div class="sheet-panel fixed inset-x-0 bottom-0 bg-[#F2F2F7] rounded-t-[24px] shadow-2xl max-w-2xl mx-auto p-4 safe-bottom">
+      <div class="pb-2 flex justify-center">
+        <div class="w-10 h-1.5 rounded-full bg-[#C6C6C8]"></div>
+      </div>
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-[18px] font-bold text-[#1C1C1E]">Złożenie dokumentów</h3>
+        <button type="button" onclick="closeQuickSubmitSheet()" class="text-sm text-[#8E8E93] font-medium px-2 py-1">
+          Zamknij
+        </button>
+      </div>
+      <div class="bg-white rounded-2xl p-4 shadow-xs space-y-3 mb-4">
+        <div>
+          <p id="quickSubmitEventName" class="font-semibold text-[16px] text-[#1C1C1E]"></p>
+          <p id="quickSubmitDeadlineHint" class="text-xs text-[#636366] mt-0.5"></p>
+        </div>
+        <div class="pt-2 border-t border-black/[0.06] flex items-center justify-between gap-2">
+          <label for="quickSubmitDateInput" class="text-sm font-medium text-[#1C1C1E]">Data złożenia wniosku:</label>
+          <input
+            id="quickSubmitDateInput"
+            type="date"
+            class="text-[16px] font-semibold text-[#007AFF] bg-[#F2F2F7] px-3 py-2 rounded-xl focus:outline-none"
+          />
+        </div>
+      </div>
+      <button
+        type="button"
+        onclick="saveQuickSubmit()"
+        class="ios-press w-full py-3.5 rounded-2xl bg-[#007AFF] text-white font-semibold text-[16px] shadow-md shadow-blue-500/25"
+      >
+        Zatwierdź i uruchom odliczanie (14 / 30 dni)
+      </button>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       SHEET 3: KOPIA ZAPASOWA, EKSPORT CSV/JSON I INSTRUKCJA iPHONE
+       ===================================================================== -->
+  <div id="backupSheet" class="fixed inset-0 z-40 sheet-hidden" aria-hidden="true">
+    <div onclick="closeBackupSheet()" class="sheet-backdrop fixed inset-0 bg-black/40 backdrop-blur-[2px]"></div>
+    <div class="sheet-panel fixed inset-x-0 bottom-0 max-h-[90vh] bg-[#F2F2F7] rounded-t-[24px] shadow-2xl flex flex-col max-w-2xl mx-auto">
+      <div class="pt-2.5 pb-1 flex justify-center shrink-0">
+        <div class="w-10 h-1.5 rounded-full bg-[#C6C6C8]"></div>
+      </div>
+      <div class="px-4 py-2.5 flex items-center justify-between border-b border-black/[0.08] shrink-0">
+        <h3 class="text-[17px] font-semibold text-[#1C1C1E]">Kopia zapasowa i Eksport</h3>
+        <button type="button" onclick="closeBackupSheet()" class="text-[16px] text-[#007AFF] font-semibold px-1 py-1">
+          Gotowe
+        </button>
+      </div>
+
+      <div class="overflow-y-auto p-4 space-y-4 safe-bottom">
+        
+        <!-- Statystyki bazy -->
+        <div class="bg-white rounded-2xl p-4 shadow-xs grid grid-cols-3 gap-2 text-center">
+          <div>
+            <p id="statTotal" class="text-xl font-bold text-[#1C1C1E]">0</p>
+            <p class="text-[11px] font-medium text-[#8E8E93]">Wszystkie</p>
+          </div>
+          <div class="border-x border-black/[0.06]">
+            <p id="statActive" class="text-xl font-bold text-[#007AFF]">0</p>
+            <p class="text-[11px] font-medium text-[#8E8E93]">W toku</p>
+          </div>
+          <div>
+            <p id="statDone" class="text-xl font-bold text-[#34C759]">0</p>
+            <p class="text-[11px] font-medium text-[#8E8E93]">Zakończone</p>
+          </div>
+        </div>
+
+        <!-- Eksport / Import -->
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-[#636366] px-3 mb-1.5">
+            Archiwizacja i Raporty (~130 imprez/rok)
+          </p>
+          <div class="bg-white rounded-2xl divide-y divide-black/[0.06] shadow-xs overflow-hidden">
+            <button
+              type="button"
+              onclick="exportToCSV()"
+              class="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-gray-50"
+            >
+              <div>
+                <p class="text-[15px] font-semibold text-[#1C1C1E]">Eksportuj zestawienie do Excel (CSV)</p>
+                <p class="text-xs text-[#8E8E93]">Pełna tabela z datami, terminami i statusem opinii</p>
+              </div>
+              <span class="text-[#34C759] font-semibold text-sm">CSV</span>
+            </button>
+
+            <button
+              type="button"
+              onclick="exportToJSON()"
+              class="w-full px-4 py-3.5 flex items-center justify-between text-left active:bg-gray-50"
+            >
+              <div>
+                <p class="text-[15px] font-semibold text-[#1C1C1E]">Pobierz kopię zapasową (JSON)</p>
+                <p class="text-xs text-[#8E8E93]">Zapisz pełną bazę w Plikach iCloud na iPhonie</p>
+              </div>
+              <span class="text-[#007AFF] font-semibold text-sm">JSON</span>
+            </button>
+
+            <label class="w-full px-4 py-3.5 flex items-center justify-between text-left cursor-pointer active:bg-gray-50">
+              <div>
+                <p class="text-[15px] font-semibold text-[#1C1C1E]">Wczytaj kopię zapasową (Import JSON)</p>
+                <p class="text-xs text-[#8E8E93]">Odtwórz zapisane imprezy z pliku .json</p>
+              </div>
+              <span class="text-[#007AFF] font-semibold text-sm">Wybierz</span>
+              <input type="file" accept=".json,application/json" onchange="importFromJSON(event)" class="hidden" />
+            </label>
+          </div>
+        </div>
+
+        <!-- Wskazówka instalacji na ekranie głównym iPhone'a -->
+        <div class="bg-blue-500/[0.08] border border-blue-500/20 rounded-2xl p-3.5">
+          <p class="text-xs font-bold text-[#007AFF] uppercase tracking-wider mb-1">
+            Jak zainstalować na ekranie głównym iPhone'a?
+          </p>
+          <p class="text-xs text-[#1C1C1E]/85 leading-relaxed">
+            Otwórz stronę w <strong>Safari</strong>, dotknij ikony <strong>Udostępnij</strong> (kwadrat ze strzałką w górę na dolnym pasku) i wybierz <strong>„Do ekranu początkowego”</strong>. Aplikacja będzie działać jak natywny program iOS również bez internetu.
+          </p>
+        </div>
+
+        <!-- Zarządzanie danymi przykładowymi -->
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wider text-[#636366] px-3 mb-1.5">
+            Zarządzanie danymi
+          </p>
+          <div class="bg-white rounded-2xl divide-y divide-black/[0.06] shadow-xs overflow-hidden">
+            <button
+              type="button"
+              onclick="restoreSampleData()"
+              class="w-full px-4 py-3 text-left text-[15px] font-medium text-[#007AFF] active:bg-gray-50"
+            >
+              Załaduj ponownie 5 imprez przykładowych
+            </button>
+            <button
+              id="clearAllInitialBtn"
+              type="button"
+              onclick="document.getElementById('clearAllConfirmBox').classList.remove('hidden')"
+              class="w-full px-4 py-3 text-left text-[15px] font-medium text-[#FF3B30] active:bg-red-50"
+            >
+              Wyczyść wszystkie dane
+            </button>
+            <div id="clearAllConfirmBox" class="hidden p-3.5 bg-red-50/70 space-y-2">
+              <p class="text-xs font-semibold text-[#FF3B30]">
+                Usunąć wszystkie imprezy z pamięci przeglądarki? (Zalecamy wcześniej pobrać kopię JSON).
+              </p>
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  onclick="document.getElementById('clearAllConfirmBox').classList.add('hidden')"
+                  class="flex-1 py-2 rounded-xl bg-white text-xs font-semibold text-[#1C1C1E] border border-black/10"
+                >
+                  Anuluj
+                </button>
+                <button
+                  type="button"
+                  onclick="clearAllData()"
+                  class="flex-1 py-2 rounded-xl bg-[#FF3B30] text-xs font-semibold text-white"
+                >
+                  Wyczyść wszystko
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       LOGIKA APLIKACJI (JavaScript)
+       ===================================================================== -->
+  <script>
+    // =========================================================================
+    // 1. STAŁE I STAN APLIKACJI
+    // =========================================================================
+    const STORAGE_KEY = 'imprezy_masowe_ios_v1';
+
+    let events = [];
+    let activeFilter = 'all';     // 'all' | 'to_submit' | 'opinions' | 'decision' | 'done'
+    let activeSort = 'urgent';    // 'urgent' | 'date_asc' | 'date_desc'
+    let activeYear = 'all';       // 'all' | '2026' | '2027' ...
+    let searchQuery = '';
+    let quickSubmitTargetId = null;
+    let collapsedMonths = {};     // Zapamiętuje zwinięte miesiące na liście
+
+    const MONTHS_PL_UPPER = [
+      'STYCZEŃ', 'LUTY', 'MARZEC', 'KWIECIEŃ', 'MAJ', 'CZERWIEC',
+      'LIPIEC', 'SIERPIEŃ', 'WRZESIEŃ', 'PAŹDZIERNIK', 'LISTOPAD', 'GRUDZIEŃ'
+    ];
+
+    const MONTHS_PL_GENITIVE = [
+      'sty', 'lut', 'mar', 'kwi', 'maj', 'cze',
+      'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'
+    ];
+
+    const DAYS_PL_SHORT = ['ndz.', 'pon.', 'wt.', 'śr.', 'czw.', 'pt.', 'sob.'];
+
+    // =========================================================================
+    // 2. PRECYZYJNE OPERACJE NA DATACH (Bez przesunięć stref czasowych UTC)
+    // =========================================================================
+
+    /**
+     * Zamienia ciąg YYYY-MM-DD na obiekt Date w lokalnej strefie czasowej (00:00:00).
+     */
+    function parseLocalDate(dateStr) {
+      if (!dateStr) return null;
+      const [y, m, d] = dateStr.split('-').map(Number);
+      return new Date(y, m - 1, d, 0, 0, 0, 0);
+    }
+
+    /**
+     * Formatuje obiekt Date na YYYY-MM-DD.
+     */
+    function formatISODate(dateObj) {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    /**
+     * Zwraca dzisiejszą datę lokalną jako YYYY-MM-DD.
+     */
+    function getTodayISO() {
+      const now = new Date();
+      return formatISODate(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
+    }
+
+    /**
+     * Dodaje (lub odejmuje) określoną liczbę dni do daty YYYY-MM-DD.
+     */
+    function addDaysISO(dateStr, days) {
+      const dt = parseLocalDate(dateStr);
+      if (!dt) return '';
+      dt.setDate(dt.getDate() + days);
+      return formatISODate(dt);
+    }
+
+    /**
+     * Oblicza różnicę dni: targetDateStr - baseDateStr.
+     * Dodatni wynik = tyle dni pozostało; 0 = dzisiaj; ujemny = tyle dni po terminie.
+     */
+    function diffDays(targetDateStr, baseDateStr = getTodayISO()) {
+      const target = parseLocalDate(targetDateStr);
+      const base = parseLocalDate(baseDateStr);
+      if (!target || !base) return 0;
+      const MS_PER_DAY = 1000 * 60 * 60 * 24;
+      return Math.round((target - base) / MS_PER_DAY);
+    }
+
+    /**
+     * Formatuje YYYY-MM-DD na polski zapis DD.MM.YYYY.
+     */
+    function formatPLDate(dateStr) {
+      if (!dateStr) return '—';
+      const [y, m, d] = dateStr.split('-');
+      return `${d}.${m}.${y}`;
+    }
+
+    /**
+     * Formatuje YYYY-MM-DD na czytelny format nagłówka karty np. "pt., 18 gru 2026".
+     */
+    function formatEventHeaderDate(dateStr) {
+      const dt = parseLocalDate(dateStr);
+      if (!dt) return '';
+      const dayName = DAYS_PL_SHORT[dt.getDay()];
+      const dayNum = dt.getDate();
+      const monthShort = MONTHS_PL_GENITIVE[dt.getMonth()];
+      const year = dt.getFullYear();
+      return `${dayName}, ${dayNum} ${monthShort} ${year}`;
+    }
+
+    /**
+     * Poprawna odmiana słowa "dzień" / "dni" w języku polskim.
+     */
+    function odmianaDni(count) {
+      const abs = Math.abs(count);
+      if (abs === 1) return '1 dzień';
+      return `${abs} dni`;
+    }
+
+    /**
+     * Poprawna odmiana czasownika "został / zostały / zostało".
+     */
+    function odmianaZostalo(count) {
+      const abs = Math.abs(count);
+      if (abs === 1) return 'został 1 dzień';
+      const lastDigit = abs % 10;
+      const lastTwo = abs % 100;
+      if (lastDigit >= 2 && lastDigit <= 4 && (lastTwo < 12 || lastTwo > 14)) {
+        return `zostały ${abs} dni`;
+      }
+      return `zostało ${abs} dni`;
+    }
+
+    // =========================================================================
+    // 3. OBLICZANIE TERMINÓW I STATUSÓW DLA POJEDYNCZEJ IMPREZY
+    // =========================================================================
+
+    /**
+     * Wylicza kompletny stan 3 odliczań oraz priorytet pilności dla imprezy.
+     */
+    function computeEventMetrics(ev) {
+      const today = getTodayISO();
+
+      // Licznik 1: Złożenie dokumentów (30 dni przed datą imprezy)
+      const submitDeadline = addDaysISO(ev.eventDate, -30);
+      const hasSubmitted = Boolean(ev.submissionDate);
+      const daysToSubmit = diffDays(submitDeadline, today);
+      const submittedDiffFromDeadline = hasSubmitted ? diffDays(submitDeadline, ev.submissionDate) : null;
+
+      // Opinie służb (4 służby)
+      const opinions = ev.opinions || { policja: false, psp: false, zrm: false, sanepid: false };
+      const opinionsCount = [opinions.policja, opinions.psp, opinions.zrm, opinions.sanepid].filter(Boolean).length;
+      const allOpinionsDone = opinionsCount === 4;
+
+      // Licznik 2: Opinie służb (14 dni od daty złożenia)
+      const opinionsDeadline = hasSubmitted ? addDaysISO(ev.submissionDate, 14) : null;
+      const daysToOpinions = hasSubmitted ? diffDays(opinionsDeadline, today) : null;
+
+      // Licznik 3: Otrzymanie decyzji (30 dni od daty złożenia)
+      const decisionDeadline = hasSubmitted ? addDaysISO(ev.submissionDate, 30) : null;
+      const daysToDecision = hasSubmitted ? diffDays(decisionDeadline, today) : null;
+      const isDone = Boolean(ev.decisionReceived);
+
+      // Dni do samej imprezy
+      const daysToEvent = diffDays(ev.eventDate, today);
+
+      // Wyznaczenie najpilniejszego aktywnego terminu (do sortowania i koloru paska)
+      let activeDeadlines = [];
+      if (!isDone) {
+        if (!hasSubmitted) {
+          activeDeadlines.push(daysToSubmit);
+        } else {
+          if (!allOpinionsDone && daysToOpinions !== null) {
+            activeDeadlines.push(daysToOpinions);
+          }
+          if (daysToDecision !== null) {
+            activeDeadlines.push(daysToDecision);
+          }
+        }
+      }
+
+      const mostUrgentDays = activeDeadlines.length > 0 ? Math.min(...activeDeadlines) : null;
+
+      // Kolor paska pilności (iOS semantic colors)
+      let urgencyLevel = 'blue'; // > 7 dni
+      if (isDone) {
+        urgencyLevel = 'green';
+      } else if (mostUrgentDays !== null && mostUrgentDays <= 3) {
+        urgencyLevel = 'red';    // <= 3 dni lub po terminie
+      } else if (mostUrgentDays !== null && mostUrgentDays <= 7) {
+        urgencyLevel = 'orange'; // 4-7 dni
+      }
+
+      return {
+        submitDeadline,
+        hasSubmitted,
+        daysToSubmit,
+        submittedDiffFromDeadline,
+        opinions,
+        opinionsCount,
+        allOpinionsDone,
+        opinionsDeadline,
+        daysToOpinions,
+        decisionDeadline,
+        daysToDecision,
+        isDone,
+        daysToEvent,
+        mostUrgentDays,
+        urgencyLevel
+      };
+    }
+
+    // =========================================================================
+    // 4. DANE PRZYKŁADOWE I PAMIĘĆ LOCALSTORAGE
+    // =========================================================================
+
+    function getDefaultSampleEvents() {
+      const today = getTodayISO();
+      // Ustawiamy daty dynamicznie względem bieżącego dnia, aby przykłady zawsze prezentowały wszystkie 5 stanów
+      const ev1Date = addDaysISO(today, 33); // 30 dni przed = +3 dni od dziś (pilne złożenie!)
+      
+      const ev2Date = addDaysISO(today, 42);
+      const ev2Sub = addDaysISO(today, -7);  // 7 dni temu złożono -> zostało 7 dni na opinie (2/4) i 23 dni na decyzję
+
+      const ev3Date = addDaysISO(today, 23);
+      const ev3Sub = addDaysISO(today, -17); // 17 dni temu złożono -> 3 dni po terminie 14 dni na opinie (3/4), zostało 13 dni na decyzję
+
+      const ev4Date = addDaysISO(today, 52);
+      const ev4Sub = addDaysISO(today, -14); // Komplet opinii 4/4, zostało 16 dni na decyzję 30-dniową
+
+      const ev5Date = addDaysISO(today, 9);
+      const ev5Sub = addDaysISO(today, -35);
+      const ev5Dec = addDaysISO(today, -7);
+
+      return [
+        {
+          id: 'sample-1',
+          name: 'Mecz Ekstraklasy: Pogoń Szczecin – Lech Poznań',
+          venue: 'Stadion Miejski im. Floriana Krygiera, Szczecin',
+          eventDate: ev1Date,
+          submissionDate: '',
+          opinions: { policja: false, psp: false, zrm: false, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Mecz podwyższonego ryzyka, sektor gości 1000 miejsc.'
+        },
+        {
+          id: 'sample-2',
+          name: 'Sylwester Miejski na Łasztowni',
+          venue: 'Łasztownia, Szczecin',
+          eventDate: ev2Date,
+          submissionDate: ev2Sub,
+          opinions: { policja: true, psp: true, zrm: false, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Wniosek złożony w Urzędzie Miasta, czekamy jeszcze na ZRM i Sanepid.'
+        },
+        {
+          id: 'sample-3',
+          name: 'Gala Sportów Walki KSW',
+          venue: 'Netto Arena, Szczecin',
+          eventDate: ev3Date,
+          submissionDate: ev3Sub,
+          opinions: { policja: true, psp: true, zrm: true, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Wysłano ponaglenie do PPIS w sprawie opinii sanitarnej.'
+        },
+        {
+          id: 'sample-4',
+          name: 'Koncert Noworoczny – Muzyka Filmowa',
+          venue: 'ERGO ARENA, Gdańsk / Sopot',
+          eventDate: ev4Date,
+          submissionDate: ev4Sub,
+          opinions: { policja: true, psp: true, zrm: true, sanepid: true },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Komplet 4 pozytywnych opinii w aktach, projekt decyzji w podpisie.'
+        },
+        {
+          id: 'sample-5',
+          name: 'Festiwal Światła i Dźwięku',
+          venue: 'Wały Chrobrego, Szczecin',
+          eventDate: ev5Date,
+          submissionDate: ev5Sub,
+          opinions: { policja: true, psp: true, zrm: true, sanepid: true },
+          decisionReceived: true,
+          decisionDate: ev5Dec,
+          note: 'Decyzja nr BM-IV.5310.118 odebrana z urzędu.'
+        }
+      ];
+    }
+
+    function loadEvents() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw !== null) {
+          events = JSON.parse(raw);
+        } else {
+          events = getDefaultSampleEvents();
+          saveEventsToStorage();
+        }
+      } catch (e) {
+        console.error('Błąd odczytu localStorage:', e);
+        events = getDefaultSampleEvents();
+      }
+    }
+
+    function saveEventsToStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+      } catch (e) {
+        showToast('Błąd zapisu w pamięci urządzenia', '!');
+      }
+    }
+
+    // =========================================================================
+    // 5. POWIADOMIENIA TOAST (Zastępują alert())
+    // =========================================================================
+    let toastTimer = null;
+    function showToast(message, icon = '✓') {
+      const banner = document.getElementById('toastBanner');
+      document.getElementById('toastText').textContent = message;
+      document.getElementById('toastIcon').textContent = icon;
+      document.getElementById('toastIcon').className = icon === '!' ? 'text-[#FF3B30] font-bold' : 'text-[#34C759] font-bold';
+
+      banner.classList.remove('opacity-0', '-translate-y-4');
+      banner.classList.add('opacity-100', 'translate-y-0');
+
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        banner.classList.remove('opacity-100', 'translate-y-0');
+        banner.classList.add('opacity-0', '-translate-y-4');
+      }, 2500);
+    }
+
+    // =========================================================================
+    // 6. RENDEROWANIE INTERFEJSU (KPI, FILTRY, GRUPOWANIE MIESIĘCZNE, KARTY)
+    // =========================================================================
+
+    function updateHeaderDate() {
+      const today = parseLocalDate(getTodayISO());
+      const options = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+      const formatted = today.toLocaleDateString('pl-PL', options);
+      document.getElementById('todaySubtitle').textContent = formatted.charAt(0).toUpperCase() + formatted.slice(1);
+    }
+
+    function updateYearDropdown() {
+      const select = document.getElementById('yearFilterSelect');
+      const years = [...new Set(events.map(e => e.eventDate.slice(0, 4)))].sort();
+      const currentVal = activeYear;
+
+      select.innerHTML = `<option value="all">Wszystkie lata (${events.length})</option>` +
+        years.map(y => {
+          const count = events.filter(e => e.eventDate.startsWith(y)).length;
+          return `<option value="${y}">${y} (${count})</option>`;
+        }).join('');
+
+      if (years.includes(currentVal) || currentVal === 'all') {
+        select.value = currentVal;
+      } else {
+        activeYear = 'all';
+        select.value = 'all';
+      }
+    }
+
+    function renderKPIs(enrichedEvents) {
+      const counts = {
+        all: enrichedEvents.length,
+        to_submit: enrichedEvents.filter(item => !item.metrics.hasSubmitted && !item.metrics.isDone).length,
+        opinions: enrichedEvents.filter(item => item.metrics.hasSubmitted && !item.metrics.allOpinionsDone && !item.metrics.isDone).length,
+        decision: enrichedEvents.filter(item => item.metrics.hasSubmitted && !item.metrics.isDone).length,
+        done: enrichedEvents.filter(item => item.metrics.isDone).length
+      };
+
+      document.getElementById('headerYearBadge').textContent = `${events.length} imprez`;
+
+      const kpiItems = [
+        { id: 'all', label: 'Wszystkie', count: counts.all },
+        { id: 'to_submit', label: 'Do złożenia', count: counts.to_submit },
+        { id: 'opinions', label: 'Czeka na opinie', count: counts.opinions },
+        { id: 'decision', label: 'Czeka na decyzję', count: counts.decision },
+        { id: 'done', label: 'Zakończone', count: counts.done }
+      ];
+
+      const container = document.getElementById('kpiStrip');
+      container.innerHTML = kpiItems.map(k => {
+        const isActive = activeFilter === k.id;
+        return `
+          <button
+            type="button"
+            onclick="setFilter('${k.id}')"
+            class="ios-press shrink-0 px-3.5 py-2 rounded-2xl text-[13px] font-semibold flex items-center gap-1.5 transition-all ${
+              isActive
+                ? 'bg-[#1C1C1E] text-white shadow-sm'
+                : 'bg-white text-[#1C1C1E] border border-black/[0.05]'
+            }"
+          >
+            <span>${k.label}</span>
+            <span class="px-1.5 py-0.2 rounded-full text-[11px] font-bold ${
+              isActive ? 'bg-white/20 text-white' : 'bg-[#F2F2F7] text-[#636366]'
+            }">
+              ${k.count}
+            </span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function updateSortButtonsUI() {
+      document.querySelectorAll('.sort-btn').forEach(btn => {
+        const isSelected = btn.dataset.sort === activeSort;
+        btn.className = `sort-btn px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
+          isSelected
+            ? 'bg-[#007AFF] text-white'
+            : 'bg-white/80 text-[#636366] border border-black/[0.05]'
+        }`;
+      });
+    }
+
+    function renderApp() {
+      updateYearDropdown();
+      updateSortButtonsUI();
+
+      // 1. Wzbogacenie wszystkich imprez o wyliczone liczniki
+      const enrichedAll = events.map(ev => ({
+        event: ev,
+        metrics: computeEventMetrics(ev)
+      }));
+
+      // 2. Filtrowanie po roku (jeśli wybrany konkretny rok)
+      const yearScoped = activeYear === 'all'
+        ? enrichedAll
+        : enrichedAll.filter(item => item.event.eventDate.startsWith(activeYear));
+
+      // 3. Renderowanie KPI dla bieżącego zakresu roku
+      renderKPIs(yearScoped);
+
+      // 4. Filtrowanie po KPI oraz wyszukiwarce tekstowej
+      const q = searchQuery.trim().toLowerCase();
+      const filtered = yearScoped.filter(({ event, metrics }) => {
+        // Filtr KPI
+        if (activeFilter === 'to_submit' && (metrics.hasSubmitted || metrics.isDone)) return false;
+        if (activeFilter === 'opinions' && (!metrics.hasSubmitted || metrics.allOpinionsDone || metrics.isDone)) return false;
+        if (activeFilter === 'decision' && (!metrics.hasSubmitted || metrics.isDone)) return false;
+        if (activeFilter === 'done' && !metrics.isDone) return false;
+
+        // Wyszukiwarka tekstowa
+        if (q) {
+          const haystack = `${event.name} ${event.venue || ''} ${event.note || ''} ${formatPLDate(event.eventDate)}`.toLowerCase();
+          if (!haystack.includes(q)) return false;
+        }
+        return true;
+      });
+
+      // 5. Sortowanie
+      filtered.sort((a, b) => {
+        if (activeSort === 'date_asc') {
+          return a.event.eventDate.localeCompare(b.event.eventDate);
+        }
+        if (activeSort === 'date_desc') {
+          return b.event.eventDate.localeCompare(a.event.eventDate);
+        }
+        // 'urgent': najpierw niezakończone wg najbliższego terminu (najmniejsza liczba dni, w tym ujemne po terminie), na końcu zakończone
+        if (a.metrics.isDone !== b.metrics.isDone) {
+          return a.metrics.isDone ? 1 : -1;
+        }
+        if (a.metrics.mostUrgentDays !== null && b.metrics.mostUrgentDays !== null) {
+          if (a.metrics.mostUrgentDays !== b.metrics.mostUrgentDays) {
+            return a.metrics.mostUrgentDays - b.metrics.mostUrgentDays;
+          }
+        }
+        return a.event.eventDate.localeCompare(b.event.eventDate);
+      });
+
+      const container = document.getElementById('eventsContainer');
+
+      // Pusty stan
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white rounded-3xl p-8 text-center shadow-xs border border-black/[0.04] mt-4">
+            <div class="w-14 h-14 rounded-2xl bg-[#F2F2F7] text-[#8E8E93] flex items-center justify-center mx-auto mb-3">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+              </svg>
+            </div>
+            <h3 class="text-[17px] font-semibold text-[#1C1C1E] mb-1">Brak imprez w tym widoku</h3>
+            <p class="text-sm text-[#8E8E93] mb-4">
+              Zmień filtr wyszukiwania lub dodaj nową imprezę masową do terminarza.
+            </p>
+            ${activeFilter !== 'all' || searchQuery ? `
+              <button
+                type="button"
+                onclick="resetFilters()"
+                class="px-4 py-2 rounded-xl bg-[#007AFF]/10 text-[#007AFF] text-sm font-semibold"
+              >
+                Pokaż wszystkie imprezy
+              </button>
+            ` : `
+              <button
+                type="button"
+                onclick="openEventSheet()"
+                class="px-5 py-2.5 rounded-xl bg-[#007AFF] text-white text-sm font-semibold"
+              >
+                + Dodaj pierwszą imprezę
+              </button>
+            `}
+          </div>
+        `;
+        return;
+      }
+
+      // 6. Grupowanie według Miesięcy i Lat (np. "LISTOPAD 2026", "GRUDZIEŃ 2026")
+      // Zachowujemy kolejność grup zgodną z wybranym sortowaniem
+      const groups = [];
+      const groupMap = new Map();
+
+      filtered.forEach(item => {
+        const [year, month] = item.event.eventDate.split('-');
+        const key = `${year}-${month}`;
+        const label = `${MONTHS_PL_UPPER[Number(month) - 1]} ${year}`;
+        if (!groupMap.has(key)) {
+          const grp = { key, label, items: [] };
+          groupMap.set(key, grp);
+          groups.push(grp);
+        }
+        groupMap.get(key).items.push(item);
+      });
+
+      container.innerHTML = groups.map(group => {
+        const isCollapsed = Boolean(collapsedMonths[group.key]);
+        return `
+          <section class="space-y-3">
+            <!-- Nagłówek Miesiąca i Roku (klikalny do zwijania przy dużej liczbie imprez) -->
+            <button
+              type="button"
+              onclick="toggleMonthGroup('${group.key}')"
+              class="w-full flex items-center justify-between px-1 py-0.5 text-left group"
+            >
+              <div class="flex items-center gap-2">
+                <h2 class="text-[13px] font-bold tracking-wider text-[#636366]">
+                  ${group.label}
+                </h2>
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-black/[0.06] text-[#636366]">
+                  ${group.items.length}
+                </span>
+              </div>
+              <svg class="w-4 h-4 text-[#8E8E93] transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+
+            <!-- Karty imprez w danym miesiącu -->
+            <div class="${isCollapsed ? 'hidden' : 'space-y-3'}">
+              ${group.items.map(({ event, metrics }) => renderEventCard(event, metrics)).join('')}
+            </div>
+          </section>
+        `;
+      }).join('');
+    }
+
+    /**
+     * Renderuje pojedynczą kartę imprezy z 3 licznikami i szybkimi przyciskami 4 służb.
+     */
+    function renderEventCard(ev, m) {
+      // Kolor bocznego paska pilności
+      const stripeColors = {
+        red: 'bg-[#FF3B30]',
+        orange: 'bg-[#FF9500]',
+        blue: 'bg-[#007AFF]',
+        green: 'bg-[#34C759]'
+      };
+
+      // Odznaka daty samej imprezy
+      let eventDaysLabel = '';
+      if (m.daysToEvent > 0) eventDaysLabel = `za ${odmianaDni(m.daysToEvent)}`;
+      else if (m.daysToEvent === 0) eventDaysLabel = 'DZIŚ';
+      else eventDaysLabel = `${Math.abs(m.daysToEvent)} dni temu`;
+
+      // --- LICZNIK 1: ZŁOŻENIE DOKUMENTÓW (30 dni przed imprezą) ---
+      let counter1HTML = '';
+      if (!m.hasSubmitted) {
+        let badgeStyle = 'bg-blue-50 text-[#007AFF] border-blue-200/70';
+        let statusText = `${odmianaZostalo(m.daysToSubmit)} do złożenia`;
+
+        if (m.daysToSubmit < 0) {
+          badgeStyle = 'bg-red-50 text-[#FF3B30] border-red-200';
+          statusText = `Po terminie o ${odmianaDni(m.daysToSubmit)}!`;
+        } else if (m.daysToSubmit === 0) {
+          badgeStyle = 'bg-red-50 text-[#FF3B30] border-red-200';
+          statusText = 'Dziś termin złożenia!';
+        } else if (m.daysToSubmit <= 3) {
+          badgeStyle = 'bg-red-50 text-[#FF3B30] border-red-200';
+        } else if (m.daysToSubmit <= 7) {
+          badgeStyle = 'bg-orange-50 text-[#C96A00] border-orange-200';
+        }
+
+        counter1HTML = `
+          <div class="rounded-xl p-2.5 border ${badgeStyle} flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <div class="text-[11px] font-bold uppercase tracking-wide opacity-75">
+                1. Złożenie dokumentów (do ${formatPLDate(m.submitDeadline)})
+              </div>
+              <div class="text-[14px] font-bold mt-0.5">
+                ${statusText}
+              </div>
+            </div>
+            <button
+              type="button"
+              onclick="openQuickSubmitSheet('${ev.id}')"
+              class="ios-press px-3 py-2 rounded-xl bg-[#007AFF] text-white text-xs font-semibold shadow-xs shrink-0"
+            >
+              Wpisz datę złożenia
+            </button>
+          </div>
+        `;
+      } else {
+        const onTime = m.submittedDiffFromDeadline >= 0;
+        const timingText = onTime
+          ? (m.submittedDiffFromDeadline === 0 ? 'w ostatnim dniu terminu' : `w terminie (${odmianaDni(m.submittedDiffFromDeadline)} zapasu)`)
+          : `${odmianaDni(m.submittedDiffFromDeadline)} po terminie 30-dniowym`;
+
+        counter1HTML = `
+          <div class="rounded-xl px-3 py-2 bg-[#F2F2F7]/80 flex items-center justify-between gap-2 text-xs">
+            <span class="font-semibold text-[#1C1C1E]">
+              ✓ Złożono ${formatPLDate(ev.submissionDate)}
+            </span>
+            <span class="font-medium ${onTime ? 'text-[#248A3D]' : 'text-[#FF3B30]'}">
+              ${timingText}
+            </span>
+          </div>
+        `;
+      }
+
+      // --- LICZNIK 2: OPINIE SŁUŻB (14 dni od daty złożenia) ---
+      let counter2HTML = '';
+      if (m.hasSubmitted) {
+        let opStatusHTML = '';
+        if (m.allOpinionsDone) {
+          opStatusHTML = `
+            <span class="inline-flex items-center gap-1 text-xs font-bold text-[#248A3D] bg-[#34C759]/15 px-2.5 py-1 rounded-lg">
+              ✓ Komplet opinii (4/4)
+            </span>
+          `;
+        } else {
+          let opColor = 'text-[#007AFF] bg-blue-50';
+          let opText = `Opinie służb: ${odmianaZostalo(m.daysToOpinions)} (do ${formatPLDate(m.opinionsDeadline)})`;
+          if (m.daysToOpinions < 0) {
+            opColor = 'text-[#FF3B30] bg-red-50';
+            opText = `Opinie służb: po terminie o ${odmianaDni(m.daysToOpinions)} (było ${formatPLDate(m.opinionsDeadline)})`;
+          } else if (m.daysToOpinions === 0) {
+            opColor = 'text-[#FF3B30] bg-red-50';
+            opText = `Opinie służb: termin 14 dni mija DZIŚ (${formatPLDate(m.opinionsDeadline)})!`;
+          } else if (m.daysToOpinions <= 3) {
+            opColor = 'text-[#FF3B30] bg-red-50';
+          } else if (m.daysToOpinions <= 7) {
+            opColor = 'text-[#C96A00] bg-orange-50';
+          }
+
+          opStatusHTML = `
+            <div class="text-xs font-semibold ${opColor} px-2.5 py-1.5 rounded-lg">
+              ${opText}
+            </div>
+          `;
+        }
+
+        const services = [
+          { key: 'policja', label: 'Policja' },
+          { key: 'psp', label: 'PSP' },
+          { key: 'zrm', label: 'ZRM' },
+          { key: 'sanepid', label: 'Sanepid' }
+        ];
+
+        counter2HTML = `
+          <div class="space-y-2 pt-0.5">
+            <div class="flex items-center justify-between gap-2 flex-wrap">
+              ${opStatusHTML}
+              <span class="text-[11px] font-semibold text-[#8E8E93]">Opinie: ${m.opinionsCount}/4</span>
+            </div>
+
+            <!-- 4 bezpośrednie przyciski dotykowe służb (1 kliknięcie na iPhonie) -->
+            <div class="grid grid-cols-4 gap-1.5">
+              ${services.map(srv => {
+                const checked = Boolean(m.opinions[srv.key]);
+                return `
+                  <button
+                    type="button"
+                    onclick="toggleServiceOpinion('${ev.id}', '${srv.key}')"
+                    class="ios-press min-h-[38px] px-1.5 py-1.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1 border transition-all ${
+                      checked
+                        ? 'bg-[#34C759]/15 border-[#34C759]/40 text-[#1D7A34]'
+                        : 'bg-[#F2F2F7] border-transparent text-[#636366]'
+                    }"
+                  >
+                    <span class="text-[13px] leading-none">${checked ? '✓' : '○'}</span>
+                    <span class="truncate">${srv.label}</span>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      // --- LICZNIK 3: OTRZYMANIE DECYZJI (30 dni od daty złożenia) ---
+      let counter3HTML = '';
+      if (m.hasSubmitted) {
+        if (m.isDone) {
+          counter3HTML = `
+            <div class="rounded-xl px-3 py-2 bg-[#34C759]/15 border border-[#34C759]/30 flex items-center justify-between gap-2">
+              <span class="text-xs font-bold text-[#1D7A34]">
+                ✓ Decyzja wydana ${ev.decisionDate ? `• ${formatPLDate(ev.decisionDate)}` : ''}
+              </span>
+              <button
+                type="button"
+                onclick="toggleDecisionQuick('${ev.id}')"
+                class="text-[11px] font-semibold text-[#1D7A34]/80 underline"
+              >
+                Cofnij
+              </button>
+            </div>
+          `;
+        } else {
+          let decColor = 'bg-blue-50/80 text-[#007AFF] border-blue-200/60';
+          let decText = `Decyzja (30 dni): ${odmianaZostalo(m.daysToDecision)} (do ${formatPLDate(m.decisionDeadline)})`;
+
+          if (m.daysToDecision < 0) {
+            decColor = 'bg-red-50 text-[#FF3B30] border-red-200';
+            decText = `Decyzja (30 dni): po terminie o ${odmianaDni(m.daysToDecision)} (było ${formatPLDate(m.decisionDeadline)})`;
+          } else if (m.daysToDecision === 0) {
+            decColor = 'bg-red-50 text-[#FF3B30] border-red-200';
+            decText = `Decyzja (30 dni): termin mija DZIŚ (${formatPLDate(m.decisionDeadline)})!`;
+          } else if (m.daysToDecision <= 3) {
+            decColor = 'bg-red-50 text-[#FF3B30] border-red-200';
+          } else if (m.daysToDecision <= 7) {
+            decColor = 'bg-orange-50 text-[#C96A00] border-orange-200';
+          }
+
+          counter3HTML = `
+            <div class="rounded-xl px-3 py-2 border ${decColor} flex items-center justify-between gap-2">
+              <span class="text-xs font-semibold leading-snug">
+                ${decText}
+              </span>
+              <button
+                type="button"
+                onclick="toggleDecisionQuick('${ev.id}')"
+                class="ios-press shrink-0 px-2.5 py-1 rounded-lg bg-white/90 text-[#1C1C1E] border border-black/10 text-[11px] font-bold shadow-2xs"
+              >
+                Odebrano ✓
+              </button>
+            </div>
+          `;
+        }
+      }
+
+      return `
+        <article class="bg-white rounded-2xl shadow-xs border border-black/[0.04] overflow-hidden flex">
+          <!-- Lewy pasek pilności -->
+          <div class="w-1.5 shrink-0 ${stripeColors[m.urgencyLevel]}"></div>
+
+          <!-- Główna treść karty -->
+          <div class="flex-1 p-3.5 space-y-2.5 min-w-0">
+            
+            <!-- Górna sekcja: Nazwa, Obiekt, Data imprezy i Przycisk Edycji -->
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5 flex-wrap mb-1">
+                  <span class="text-xs font-bold text-[#1C1C1E] bg-[#F2F2F7] px-2 py-0.5 rounded-md">
+                    ${formatEventHeaderDate(ev.eventDate)}
+                  </span>
+                  <span class="text-[11px] font-semibold text-[#8E8E93]">
+                    (${eventDaysLabel})
+                  </span>
+                </div>
+
+                <h3
+                  onclick="openEventSheet('${ev.id}')"
+                  class="text-[16px] font-bold text-[#1C1C1E] leading-snug cursor-pointer active:text-[#007AFF]"
+                >
+                  ${escapeHTML(ev.name)}
+                </h3>
+
+                ${ev.venue ? `
+                  <p class="text-xs text-[#636366] font-medium mt-0.5 flex items-center gap-1 truncate">
+                    <svg class="w-3.5 h-3.5 text-[#8E8E93] shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                    </svg>
+                    <span class="truncate">${escapeHTML(ev.venue)}</span>
+                  </p>
+                ` : ''}
+              </div>
+
+              <!-- Przycisk Edytuj (duże pole dotykowe) -->
+              <button
+                type="button"
+                onclick="openEventSheet('${ev.id}')"
+                aria-label="Edytuj imprezę"
+                class="ios-press h-9 w-9 rounded-full bg-[#F2F2F7] text-[#636366] flex items-center justify-center shrink-0"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Sekcja 3 odliczań -->
+            <div class="space-y-2">
+              ${counter1HTML}
+              ${counter2HTML}
+              ${counter3HTML}
+            </div>
+
+            <!-- Notatka (jeśli istnieje) -->
+            ${ev.note ? `
+              <p class="text-xs text-[#8E8E93] italic border-t border-black/[0.05] pt-2 line-clamp-2">
+                „${escapeHTML(ev.note)}”
+              </p>
+            ` : ''}
+
+          </div>
+        </article>
+      `;
+    }
+
+    function escapeHTML(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // =========================================================================
+    // 7. SZYBKIE AKCJE Z POZIOMU KARTY (1 dotknięcie)
+    // =========================================================================
+
+    function toggleServiceOpinion(eventId, serviceKey) {
+      const ev = events.find(e => e.id === eventId);
+      if (!ev) return;
+      if (!ev.opinions) ev.opinions = { policja: false, psp: false, zrm: false, sanepid: false };
+      ev.opinions[serviceKey] = !ev.opinions[serviceKey];
+      saveEventsToStorage();
+      renderApp();
+
+      const names = { policja: 'Policja', psp: 'PSP', zrm: 'ZRM', sanepid: 'Sanepid' };
+      showToast(`${names[serviceKey]}: ${ev.opinions[serviceKey] ? 'opinia otrzymana' : 'cofnięto status'}`);
+    }
+
+    function toggleDecisionQuick(eventId) {
+      const ev = events.find(e => e.id === eventId);
+      if (!ev) return;
+      ev.decisionReceived = !ev.decisionReceived;
+      ev.decisionDate = ev.decisionReceived ? getTodayISO() : '';
+      saveEventsToStorage();
+      renderApp();
+      showToast(ev.decisionReceived ? 'Oznaczono: Decyzja wydana' : 'Cofnięto status decyzji');
+    }
+
+    // Szybki modal wpisania daty złożenia dokumentów
+    function openQuickSubmitSheet(eventId) {
+      const ev = events.find(e => e.id === eventId);
+      if (!ev) return;
+      quickSubmitTargetId = eventId;
+      const deadline = addDaysISO(ev.eventDate, -30);
+
+      document.getElementById('quickSubmitEventName').textContent = ev.name;
+      document.getElementById('quickSubmitDeadlineHint').textContent =
+        `Data imprezy: ${formatPLDate(ev.eventDate)} • Ustawowy termin złożenia: ${formatPLDate(deadline)}`;
+      document.getElementById('quickSubmitDateInput').value = getTodayISO();
+
+      const sheet = document.getElementById('quickSubmitSheet');
+      sheet.classList.remove('sheet-hidden');
+      sheet.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeQuickSubmitSheet() {
+      const sheet = document.getElementById('quickSubmitSheet');
+      sheet.classList.add('sheet-hidden');
+      sheet.setAttribute('aria-hidden', 'true');
+      quickSubmitTargetId = null;
+    }
+
+    function saveQuickSubmit() {
+      const dateVal = document.getElementById('quickSubmitDateInput').value;
+      if (!dateVal || !quickSubmitTargetId) return;
+      const ev = events.find(e => e.id === quickSubmitTargetId);
+      if (ev) {
+        ev.submissionDate = dateVal;
+        saveEventsToStorage();
+        renderApp();
+        showToast(`Zapisano datę złożenia: ${formatPLDate(dateVal)}`);
+      }
+      closeQuickSubmitSheet();
+    }
+
+    // =========================================================================
+    // 8. FILTROWANIE, WYSZUKIWANIE, SORTOWANIE I GRUPY MIESIĘCY
+    // =========================================================================
+
+    function setFilter(filterId) {
+      activeFilter = filterId;
+      renderApp();
+    }
+
+    function setSort(sortKey) {
+      activeSort = sortKey;
+      renderApp();
+    }
+
+    function setYearFilter(yearVal) {
+      activeYear = yearVal;
+      renderApp();
+    }
+
+    function handleSearch(val) {
+      searchQuery = val;
+      const clearBtn = document.getElementById('clearSearchBtn');
+      if (val.length > 0) clearBtn.classList.remove('hidden');
+      else clearBtn.classList.add('hidden');
+      renderApp();
+    }
+
+    function clearSearch() {
+      const input = document.getElementById('searchInput');
+      input.value = '';
+      handleSearch('');
+    }
+
+    function resetFilters() {
+      activeFilter = 'all';
+      activeYear = 'all';
+      clearSearch();
+      renderApp();
+    }
+
+    function toggleMonthGroup(monthKey) {
+      collapsedMonths[monthKey] = !collapsedMonths[monthKey];
+      renderApp();
+    }
+
+    // =========================================================================
+    // 9. SHEET DODAWANIA I EDYCJI IMPREZY
+    // =========================================================================
+
+    function openEventSheet(eventId = null) {
+      const sheet = document.getElementById('eventSheet');
+      const errorBox = document.getElementById('formErrorBox');
+      errorBox.classList.add('hidden');
+      hideDeleteConfirm();
+
+      if (eventId) {
+        const ev = events.find(e => e.id === eventId);
+        if (!ev) return;
+
+        document.getElementById('eventSheetTitle').textContent = 'Edytuj imprezę';
+        document.getElementById('editEventId').value = ev.id;
+        document.getElementById('inputName').value = ev.name;
+        document.getElementById('inputVenue').value = ev.venue || '';
+        document.getElementById('inputEventDate').value = ev.eventDate;
+        document.getElementById('inputSubmissionDate').value = ev.submissionDate || '';
+
+        const op = ev.opinions || { policja: false, psp: false, zrm: false, sanepid: false };
+        document.getElementById('chkPolicja').checked = Boolean(op.policja);
+        document.getElementById('chkPsp').checked = Boolean(op.psp);
+        document.getElementById('chkZrm').checked = Boolean(op.zrm);
+        document.getElementById('chkSanepid').checked = Boolean(op.sanepid);
+
+        document.getElementById('chkDecision').checked = Boolean(ev.decisionReceived);
+        document.getElementById('inputDecisionDate').value = ev.decisionDate || '';
+        document.getElementById('inputNote').value = ev.note || '';
+
+        document.getElementById('deleteSection').classList.remove('hidden');
+      } else {
+        document.getElementById('eventSheetTitle').textContent = 'Nowa impreza';
+        document.getElementById('editEventId').value = '';
+        document.getElementById('inputName').value = '';
+        document.getElementById('inputVenue').value = '';
+        document.getElementById('inputEventDate').value = addDaysISO(getTodayISO(), 35);
+        document.getElementById('inputSubmissionDate').value = '';
+
+        document.getElementById('chkPolicja').checked = false;
+        document.getElementById('chkPsp').checked = false;
+        document.getElementById('chkZrm').checked = false;
+        document.getElementById('chkSanepid').checked = false;
+
+        document.getElementById('chkDecision').checked = false;
+        document.getElementById('inputDecisionDate').value = '';
+        document.getElementById('inputNote').value = '';
+
+        document.getElementById('deleteSection').classList.add('hidden');
+      }
+
+      toggleDecisionDateRow();
+      updateFormOpinionsCount();
+      updateFormPreview();
+
+      sheet.classList.remove('sheet-hidden');
+      sheet.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeEventSheet() {
+      const sheet = document.getElementById('eventSheet');
+      sheet.classList.add('sheet-hidden');
+      sheet.setAttribute('aria-hidden', 'true');
+    }
+
+    function setTodayInInput(inputId) {
+      document.getElementById(inputId).value = getTodayISO();
+      updateFormPreview();
+    }
+
+    function clearDateInput(inputId) {
+      document.getElementById(inputId).value = '';
+      updateFormPreview();
+    }
+
+    function updateFormOpinionsCount() {
+      const count = ['chkPolicja', 'chkPsp', 'chkZrm', 'chkSanepid']
+        .filter(id => document.getElementById(id).checked).length;
+      document.getElementById('formOpinionsCounter').textContent = `${count}/4`;
+    }
+
+    function toggleDecisionDateRow() {
+      const isChecked = document.getElementById('chkDecision').checked;
+      const row = document.getElementById('decisionDateRow');
+      if (isChecked) {
+        row.classList.remove('hidden');
+        if (!document.getElementById('inputDecisionDate').value) {
+          document.getElementById('inputDecisionDate').value = getTodayISO();
+        }
+      } else {
+        row.classList.add('hidden');
+      }
+    }
+
+    function updateFormPreview() {
+      const eventDate = document.getElementById('inputEventDate').value;
+      const submissionDate = document.getElementById('inputSubmissionDate').value;
+
+      const subPreviewEl = document.getElementById('previewSubmissionDeadline');
+      if (eventDate) {
+        const deadline30 = addDaysISO(eventDate, -30);
+        const daysLeft = diffDays(deadline30, getTodayISO());
+        const statusHint = daysLeft >= 0
+          ? `${odmianaZostalo(daysLeft)}`
+          : `${odmianaDni(daysLeft)} po terminie`;
+        subPreviewEl.innerHTML = `Ustawowy termin złożenia (30 dni przed): <strong class="text-[#1C1C1E]">${formatPLDate(deadline30)}</strong> (${statusHint})`;
+      } else {
+        subPreviewEl.textContent = 'Wybierz datę imprezy, aby wyliczyć termin 30 dni na złożenie wniosku.';
+      }
+
+      const postPreviewEl = document.getElementById('previewPostSubmission');
+      if (submissionDate) {
+        const opDeadline = addDaysISO(submissionDate, 14);
+        const decDeadline = addDaysISO(submissionDate, 30);
+        postPreviewEl.innerHTML = `
+          <div class="space-y-1">
+            <div>• Termin na opinie służb (14 dni): <strong class="text-[#1C1C1E]">${formatPLDate(opDeadline)}</strong></div>
+            <div>• Termin na decyzję (30 dni): <strong class="text-[#1C1C1E]">${formatPLDate(decDeadline)}</strong></div>
+          </div>
+        `;
+      } else {
+        postPreviewEl.textContent = 'Wpisz datę złożenia dokumentów, aby uruchomić odliczanie 14 dni (opinie służb) oraz 30 dni (decyzja).';
+      }
+    }
+
+    function saveEventForm() {
+      const errorBox = document.getElementById('formErrorBox');
+      const name = document.getElementById('inputName').value.trim();
+      const venue = document.getElementById('inputVenue').value.trim();
+      const eventDate = document.getElementById('inputEventDate').value;
+      const submissionDate = document.getElementById('inputSubmissionDate').value;
+      const decisionReceived = document.getElementById('chkDecision').checked;
+      const decisionDate = decisionReceived ? document.getElementById('inputDecisionDate').value : '';
+      const note = document.getElementById('inputNote').value.trim();
+
+      if (!name) {
+        errorBox.textContent = 'Podaj nazwę imprezy masowej.';
+        errorBox.classList.remove('hidden');
+        return;
+      }
+      if (!eventDate) {
+        errorBox.textContent = 'Wybierz datę imprezy.';
+        errorBox.classList.remove('hidden');
+        return;
+      }
+
+      const opinions = {
+        policja: document.getElementById('chkPolicja').checked,
+        psp: document.getElementById('chkPsp').checked,
+        zrm: document.getElementById('chkZrm').checked,
+        sanepid: document.getElementById('chkSanepid').checked
+      };
+
+      const editId = document.getElementById('editEventId').value;
+
+      if (editId) {
+        const idx = events.findIndex(e => e.id === editId);
+        if (idx !== -1) {
+          events[idx] = {
+            ...events[idx],
+            name,
+            venue,
+            eventDate,
+            submissionDate,
+            opinions,
+            decisionReceived,
+            decisionDate,
+            note
+          };
+        }
+        showToast('Zaktualizowano imprezę');
+      } else {
+        const newEvent = {
+          id: 'ev-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+          name,
+          venue,
+          eventDate,
+          submissionDate,
+          opinions,
+          decisionReceived,
+          decisionDate,
+          note
+        };
+        events.push(newEvent);
+        showToast('Dodano nową imprezę');
+      }
+
+      saveEventsToStorage();
+      closeEventSheet();
+      renderApp();
+    }
+
+    function showDeleteConfirm() {
+      document.getElementById('deleteBtnInitial').classList.add('hidden');
+      document.getElementById('deleteBtnConfirm').classList.remove('hidden');
+    }
+
+    function hideDeleteConfirm() {
+      document.getElementById('deleteBtnInitial').classList.remove('hidden');
+      document.getElementById('deleteBtnConfirm').classList.add('hidden');
+    }
+
+    function confirmDeleteEvent() {
+      const editId = document.getElementById('editEventId').value;
+      if (!editId) return;
+      events = events.filter(e => e.id !== editId);
+      saveEventsToStorage();
+      closeEventSheet();
+      renderApp();
+      showToast('Usunięto imprezę');
+    }
+
+    // =========================================================================
+    // 10. KOPIA ZAPASOWA (JSON), EKSPORT CSV (EXCEL) I RESET DANYCH
+    // =========================================================================
+
+    function openBackupSheet() {
+      const doneCount = events.filter(e => e.decisionReceived).length;
+      document.getElementById('statTotal').textContent = events.length;
+      document.getElementById('statActive').textContent = events.length - doneCount;
+      document.getElementById('statDone').textContent = doneCount;
+      document.getElementById('clearAllConfirmBox').classList.add('hidden');
+
+      const sheet = document.getElementById('backupSheet');
+      sheet.classList.remove('sheet-hidden');
+      sheet.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeBackupSheet() {
+      const sheet = document.getElementById('backupSheet');
+      sheet.classList.add('sheet-hidden');
+      sheet.setAttribute('aria-hidden', 'true');
+    }
+
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function exportToJSON() {
+      const payload = {
+        app: 'Terminarz Imprez Masowych',
+        exportedAt: new Date().toISOString(),
+        count: events.length,
+        events
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      triggerDownload(blob, `imprezy_masowe_kopia_${getTodayISO()}.json`);
+      showToast('Pobrano kopię zapasową JSON');
+    }
+
+    function importFromJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          const importedList = Array.isArray(parsed) ? parsed : parsed.events;
+
+          if (!Array.isArray(importedList)) {
+            showToast('Nieprawidłowy format pliku JSON', '!');
+            return;
+          }
+
+          // Walidacja podstawowych pól i nadpisanie bazy
+          const validEvents = importedList.filter(item => item && item.name && item.eventDate).map(item => ({
+            id: item.id || ('ev-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6)),
+            name: String(item.name),
+            venue: item.venue ? String(item.venue) : '',
+            eventDate: String(item.eventDate),
+            submissionDate: item.submissionDate ? String(item.submissionDate) : '',
+            opinions: {
+              policja: Boolean(item.opinions?.policja),
+              psp: Boolean(item.opinions?.psp),
+              zrm: Boolean(item.opinions?.zrm),
+              sanepid: Boolean(item.opinions?.sanepid)
+            },
+            decisionReceived: Boolean(item.decisionReceived),
+            decisionDate: item.decisionDate ? String(item.decisionDate) : '',
+            note: item.note ? String(item.note) : ''
+          }));
+
+          events = validEvents;
+          saveEventsToStorage();
+          closeBackupSheet();
+          renderApp();
+          showToast(`Wczytano ${validEvents.length} imprez z kopii`);
+        } catch (err) {
+          showToast('Błąd odczytu pliku JSON', '!');
+        }
+        event.target.value = '';
+      };
+      reader.readAsText(file);
+    }
+
+    function exportToCSV() {
+      const headers = [
+        'Nazwa imprezy',
+        'Miejsce / Obiekt',
+        'Data imprezy',
+        'Termin zlozenia (30 dni przed)',
+        'Data zlozenia dokumentow',
+        'Termin opinii sluzb (14 dni)',
+        'Policja',
+        'PSP',
+        'ZRM',
+        'Sanepid',
+        'Termin decyzji (30 dni)',
+        'Decyzja otrzymana',
+        'Data decyzji',
+        'Notatka'
+      ];
+
+      const sorted = [...events].sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+
+      const rows = sorted.map(ev => {
+        const m = computeEventMetrics(ev);
+        const cells = [
+          ev.name,
+          ev.venue || '',
+          formatPLDate(ev.eventDate),
+          formatPLDate(m.submitDeadline),
+          ev.submissionDate ? formatPLDate(ev.submissionDate) : 'Nie zlozono',
+          m.opinionsDeadline ? formatPLDate(m.opinionsDeadline) : '-',
+          m.opinions.policja ? 'TAK' : 'NIE',
+          m.opinions.psp ? 'TAK' : 'NIE',
+          m.opinions.zrm ? 'TAK' : 'NIE',
+          m.opinions.sanepid ? 'TAK' : 'NIE',
+          m.decisionDeadline ? formatPLDate(m.decisionDeadline) : '-',
+          m.isDone ? 'TAK' : 'NIE',
+          ev.decisionDate ? formatPLDate(ev.decisionDate) : '-',
+          ev.note || ''
+        ];
+        return cells.map(val => `"${String(val).replace(/"/g, '""')}"`).join(';');
+      });
+
+      // Dodajemy BOM UTF-8 (\uFEFF), aby polski Excel poprawnie wyświetlał polskie znaki
+      const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      triggerDownload(blob, `zestawienie_imprez_masowych_${getTodayISO()}.csv`);
+      showToast('Wyeksportowano plik CSV dla Excela');
+    }
+
+    function restoreSampleData() {
+      events = getDefaultSampleEvents();
+      saveEventsToStorage();
+      closeBackupSheet();
+      renderApp();
+      showToast('Załadowano 5 przykładowych imprez');
+    }
+
+    function clearAllData() {
+      events = [];
+      saveEventsToStorage();
+      closeBackupSheet();
+      renderApp();
+      showToast('Wyczyszczono wszystkie dane');
+    }
+
+    // =========================================================================
+    // 11. DYNAMICZNY MANIFEST PWA (Dla instalacji na ekranie głównym)
+    // =========================================================================
+    function initPWAManifest() {
+      const manifest = {
+        name: 'Terminarz Imprez Masowych',
+        short_name: 'Imprezy Masowe',
+        start_url: '.',
+        display: 'standalone',
+        background_color: '#F2F2F7',
+        theme_color: '#F2F2F7',
+        description: 'Odliczanie terminów 30 / 14 / 30 dni oraz kontrola opinii służb dla imprez masowych.'
+      };
+      const link = document.createElement('link');
+      link.rel = 'manifest';
+      link.href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
+      document.head.appendChild(link);
+    }
+
+    // =========================================================================
+    // 12. INICJALIZACJA PO ZAŁADOWANIU STRONY
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      initPWAManifest();
+      updateHeaderDate();
+      loadEvents();
+      renderApp();
+    });
+  </script>
+</body>
+</html>
