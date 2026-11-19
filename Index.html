@@ -1,0 +1,4477 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+  <!-- Meta tagi PWA dla iOS Safari -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Imprezy Masowe" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#007AFF" />
+  <meta name="format-detection" content="telephone=no" />
+
+  <title>Imprezy Masowe — Terminarz PWA</title>
+
+  <!-- Dynamicznie podmieniane przez generator PNG w <canvas> przy starcie -->
+  <link id="appleTouchIconLink" rel="apple-touch-icon" sizes="180x180" href="" />
+  <link id="faviconIconLink" rel="icon" type="image/png" href="" />
+  <link id="webManifestLink" rel="manifest" href="" />
+
+  <style>
+    /* =========================================================================
+       1. DESIGN TOKENS & RESET (Natywny styl iOS w czystym CSS3)
+       ========================================================================= */
+    :root {
+      --bg-grouped: #F2F2F7;
+      --bg-card: #FFFFFF;
+      --bg-fill: #E5E5EA;
+      --bg-fill-secondary: rgba(118, 118, 128, 0.12);
+      --text-primary: #1C1C1E;
+      --text-secondary: #636366;
+      --text-tertiary: #8E8E93;
+      --separator: rgba(60, 60, 67, 0.12);
+
+      --ios-blue: #007AFF;
+      --ios-blue-bg: rgba(0, 122, 255, 0.11);
+      --ios-green: #34C759;
+      --ios-green-text: #1B7A34;
+      --ios-green-bg: rgba(52, 199, 89, 0.14);
+      --ios-orange: #FF9500;
+      --ios-orange-text: #B86500;
+      --ios-orange-bg: rgba(255, 149, 0, 0.14);
+      --ios-red: #FF3B30;
+      --ios-red-bg: rgba(255, 59, 48, 0.12);
+
+      --radius-card: 16px;
+      --radius-inner: 12px;
+      --radius-pill: 9999px;
+      --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+      --shadow-fab: 0 6px 20px rgba(0, 122, 255, 0.38);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-grouped);
+      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.4;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      overscroll-behavior-y: none;
+    }
+
+    button, input, select, textarea {
+      font-family: inherit;
+      font-size: inherit;
+      color: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      background: none;
+      padding: 0;
+      touch-action: manipulation;
+    }
+
+    .pressable {
+      transition: transform 0.14s ease, opacity 0.14s ease;
+    }
+    .pressable:active {
+      transform: scale(0.97);
+      opacity: 0.82;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* =========================================================================
+       2. SAFE AREA iOS (Notch / Dynamic Island / Home Indicator)
+       ========================================================================= */
+    .safe-bottom {
+      padding-bottom: max(22px, env(safe-area-inset-bottom, 22px));
+    }
+
+    /* =========================================================================
+       3. BANER TRYBU PODGLĄDU (DANE PRZYKŁADOWE)
+       ========================================================================= */
+    .sample-banner {
+      background-color: #1C1C1E;
+      color: #FFFFFF;
+      padding: calc(env(safe-area-inset-top, 0px) + 9px) 16px 9px;
+      font-size: 13px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .sample-banner-inner {
+      max-width: 720px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .sample-banner-text {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.92);
+    }
+    .sample-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--ios-orange);
+      flex-shrink: 0;
+    }
+    .sample-clear-btn {
+      background-color: rgba(255, 255, 255, 0.16);
+      color: #FFFFFF;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: var(--radius-pill);
+      min-height: 32px;
+    }
+
+    /* =========================================================================
+       4. NAGŁÓWEK STICKY iOS, PRZYCISK ZAINSTALUJ, WYSZUKIWARKA, KPI I FILTRY
+       ========================================================================= */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background-color: rgba(242, 242, 247, 0.92);
+      -webkit-backdrop-filter: blur(18px);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--separator);
+      padding-top: env(safe-area-inset-top, 0px);
+    }
+
+    /* Gdy baner danych przykładowych jest widoczny, baner przejmuje safe-area-inset-top */
+    body.has-sample-banner .app-header {
+      padding-top: 0;
+    }
+
+    .header-container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 12px 16px 10px;
+    }
+
+    .header-top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .title-group {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-wrap: wrap;
+    }
+
+    .app-title {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+      color: var(--text-primary);
+      line-height: 1.15;
+    }
+
+    .total-badge {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: var(--radius-pill);
+      background-color: var(--bg-fill-secondary);
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .today-subtitle {
+      margin: 3px 0 0;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    /* Przycisk "Powiadomienia" w nagłówku */
+    .notify-header-btn {
+      position: relative;
+      height: 40px;
+      padding: 0 11px;
+      border-radius: var(--radius-pill);
+      background-color: var(--bg-card);
+      box-shadow: var(--shadow-card);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    .notify-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--ios-red);
+      display: inline-block;
+    }
+
+    /* Przycisk "Zainstaluj" w nagłówku (ukrywany w trybie standalone) */
+    .install-header-btn {
+      height: 40px;
+      padding: 0 12px;
+      border-radius: var(--radius-pill);
+      background-color: var(--ios-blue-bg);
+      border: 1px solid rgba(0, 122, 255, 0.24);
+      color: var(--ios-blue);
+      font-size: 13px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    .backup-header-btn {
+      height: 40px;
+      padding: 0 12px;
+      border-radius: var(--radius-pill);
+      background-color: var(--bg-card);
+      box-shadow: var(--shadow-card);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    /* Wyszukiwarka iOS */
+    .search-wrapper {
+      position: relative;
+      margin-bottom: 10px;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-tertiary);
+      pointer-events: none;
+      display: flex;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 40px;
+      padding: 0 36px 0 36px;
+      border-radius: 12px;
+      border: none;
+      background-color: var(--bg-fill-secondary);
+      font-size: 15px;
+      color: var(--text-primary);
+      outline: none;
+      transition: background-color 0.2s, box-shadow 0.2s;
+    }
+    .search-input::placeholder {
+      color: var(--text-tertiary);
+    }
+    .search-input:focus {
+      background-color: var(--bg-card);
+      box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.35);
+    }
+
+    .search-clear-btn {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-tertiary);
+    }
+
+    /* Pasek KPI (poziome kafelki filtrujące) */
+    .kpi-strip {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      scrollbar-width: none;
+    }
+    .kpi-strip::-webkit-scrollbar {
+      display: none;
+    }
+
+    .kpi-pill {
+      flex-shrink: 0;
+      min-height: 38px;
+      padding: 6px 12px;
+      border-radius: 12px;
+      background-color: var(--bg-card);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      transition: background-color 0.15s, color 0.15s;
+    }
+
+    .kpi-pill.active {
+      background-color: var(--text-primary);
+      color: #FFFFFF;
+      border-color: var(--text-primary);
+    }
+
+    .kpi-count {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 1px 7px;
+      border-radius: var(--radius-pill);
+      background-color: var(--bg-grouped);
+      color: var(--text-secondary);
+    }
+    .kpi-pill.active .kpi-count {
+      background-color: rgba(255, 255, 255, 0.22);
+      color: #FFFFFF;
+    }
+    .kpi-pill.urgent-has-items:not(.active) .kpi-count {
+      background-color: var(--ios-red-bg);
+      color: var(--ios-red);
+    }
+
+    /* Pasek przełączników widoku, roku i zwijania */
+    .controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(60, 60, 67, 0.08);
+      flex-wrap: wrap;
+    }
+
+    .segmented-control {
+      display: inline-flex;
+      background-color: var(--bg-fill-secondary);
+      padding: 2px;
+      border-radius: 10px;
+    }
+
+    .segment-btn {
+      padding: 5px 11px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      min-height: 30px;
+      transition: background-color 0.18s, color 0.18s, box-shadow 0.18s;
+    }
+
+    .segment-btn.active {
+      background-color: var(--bg-card);
+      color: var(--text-primary);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    }
+
+    .right-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .year-select {
+      height: 34px;
+      padding: 0 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      background-color: var(--bg-card);
+      color: var(--ios-blue);
+      font-size: 12px;
+      font-weight: 600;
+      outline: none;
+    }
+
+    .collapse-all-btn {
+      height: 34px;
+      padding: 0 10px;
+      border-radius: 10px;
+      background-color: var(--ios-blue-bg);
+      color: var(--ios-blue);
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* =========================================================================
+       5. GŁÓWNA ZAWARTOŚĆ, SEKCJE DO ZŁOŻENIA / ZŁOŻONE I MIGAJĄCE ALERTY < 2 DNI
+       ========================================================================= */
+    @keyframes blinkRedCard {
+      0%, 100% {
+        background-color: #FFFFFF;
+        border-color: #FF3B30;
+        box-shadow: 0 0 0 2px rgba(255, 59, 48, 0.35), 0 4px 14px rgba(255, 59, 48, 0.18);
+      }
+      50% {
+        background-color: #FFE5E3;
+        border-color: #D70015;
+        box-shadow: 0 0 0 4px rgba(255, 59, 48, 0.65), 0 6px 20px rgba(255, 59, 48, 0.36);
+      }
+    }
+
+    @keyframes blinkRedBadge {
+      0%, 100% {
+        background-color: #FF3B30;
+        color: #FFFFFF;
+        transform: scale(1);
+      }
+      50% {
+        background-color: #B00012;
+        color: #FFFFFF;
+        transform: scale(1.04);
+      }
+    }
+
+    @keyframes pulseUrgentBox {
+      0%, 100% {
+        background-color: rgba(255, 59, 48, 0.14);
+        border-color: #FF3B30;
+      }
+      50% {
+        background-color: rgba(255, 59, 48, 0.27);
+        border-color: #C91C13;
+      }
+    }
+
+    .main-content {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 14px 16px calc(110px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .group-section {
+      margin-bottom: 24px;
+    }
+
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, rgba(60, 60, 67, 0.04), rgba(60, 60, 67, 0.2), rgba(60, 60, 67, 0.04));
+      margin: 22px 0 20px;
+    }
+
+    .section-banner-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 14px;
+      margin-bottom: 12px;
+    }
+
+    .section-banner-submit {
+      background-color: rgba(255, 149, 0, 0.14);
+      border: 1px solid rgba(255, 149, 0, 0.32);
+    }
+
+    .section-banner-submit.has-critical {
+      background-color: rgba(255, 59, 48, 0.13);
+      border: 1.5px solid rgba(255, 59, 48, 0.45);
+    }
+
+    .section-banner-submitted {
+      background-color: rgba(0, 122, 255, 0.1);
+      border: 1px solid rgba(0, 122, 255, 0.24);
+    }
+
+    .section-banner-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-banner-sub {
+      margin: 2px 0 0;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    .section-count-pill {
+      font-size: 13px;
+      font-weight: 800;
+      padding: 4px 11px;
+      border-radius: var(--radius-pill);
+      background-color: var(--bg-card);
+      color: var(--text-primary);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+      white-space: nowrap;
+    }
+
+    .sub-group-label {
+      margin: 14px 4px 8px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .cards-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Karta pojedynczej imprezy */
+    .event-card {
+      background-color: var(--bg-card);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-card);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+      display: flex;
+    }
+
+    /* Wyraźne miganie na czerwono dla imprez DO ZŁOŻENIA z terminem < 2 dni */
+    .event-card.card-blink-red {
+      border: 2px solid #FF3B30;
+      animation: blinkRedCard 1.15s infinite ease-in-out;
+    }
+
+    .alarm-blink-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: var(--radius-pill);
+      background-color: #FF3B30;
+      color: #FFFFFF;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      animation: blinkRedBadge 1.15s infinite ease-in-out;
+    }
+
+    .urgency-stripe {
+      width: 6px;
+      flex-shrink: 0;
+    }
+    .stripe-red { background-color: var(--ios-red); }
+    .stripe-orange { background-color: var(--ios-orange); }
+    .stripe-blue { background-color: var(--ios-blue); }
+    .stripe-green { background-color: var(--ios-green); }
+
+    .card-body {
+      flex: 1;
+      padding: 14px;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .card-top-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .ics-mini-btn {
+      height: 40px;
+      padding: 0 10px;
+      border-radius: 12px;
+      background-color: var(--ios-blue-bg);
+      color: var(--ios-blue);
+      font-size: 12px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .card-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+
+    .date-chip {
+      font-size: 12px;
+      font-weight: 700;
+      background-color: var(--bg-grouped);
+      color: var(--text-primary);
+      padding: 3px 8px;
+      border-radius: 7px;
+    }
+
+    .days-away-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-tertiary);
+    }
+
+    .event-title {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.3;
+      word-break: break-word;
+    }
+
+    .event-venue {
+      margin: 3px 0 0;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .edit-card-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: var(--bg-grouped);
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* Boksy 3 liczników na karcie */
+    .counter-box {
+      border-radius: var(--radius-inner);
+      padding: 10px 12px;
+      font-size: 13px;
+      border: 1px solid transparent;
+    }
+
+    .counter-blue {
+      background-color: var(--ios-blue-bg);
+      color: var(--ios-blue);
+    }
+    .counter-orange {
+      background-color: var(--ios-orange-bg);
+      color: var(--ios-orange-text);
+    }
+    .counter-red {
+      background-color: var(--ios-red-bg);
+      color: #C91C13;
+      border-color: rgba(255, 59, 48, 0.35);
+    }
+    /* Wyróżnienie każdego terminu krótszego niż 2 dni (< 2 dni) */
+    .counter-critical-blink {
+      background-color: rgba(255, 59, 48, 0.16);
+      color: #B00012;
+      border: 2px solid #FF3B30;
+      animation: pulseUrgentBox 1.2s infinite ease-in-out;
+    }
+    .counter-green {
+      background-color: var(--ios-green-bg);
+      color: var(--ios-green-text);
+    }
+    .counter-neutral {
+      background-color: var(--bg-grouped);
+      color: var(--text-primary);
+    }
+
+    .counter-header-line {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      opacity: 0.85;
+      margin-bottom: 3px;
+    }
+
+    .counter-main-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .counter-value {
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 8px;
+    }
+    .badge-green {
+      background-color: var(--ios-green-bg);
+      color: var(--ios-green-text);
+    }
+    .badge-red {
+      background-color: var(--ios-red-bg);
+      color: var(--ios-red);
+    }
+
+    .quick-action-btn {
+      min-height: 44px;
+      padding: 8px 14px;
+      border-radius: 11px;
+      background-color: var(--ios-blue);
+      color: #FFFFFF;
+      font-size: 13px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(0, 122, 255, 0.22);
+    }
+
+    .decision-confirm-btn {
+      min-height: 44px;
+      padding: 8px 14px;
+      border-radius: 11px;
+      background-color: var(--bg-card);
+      color: var(--text-primary);
+      border: 1px solid rgba(0, 0, 0, 0.12);
+      font-size: 13px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      white-space: nowrap;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .undo-link-btn {
+      min-height: 38px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--ios-green-text);
+      text-decoration: underline;
+    }
+
+    /* Siatka 4 przycisków opinii służb (min. 44px wysokości) */
+    .opinions-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-top: 2px;
+    }
+
+    .opinions-top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .opinions-fraction {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      background-color: var(--bg-grouped);
+      padding: 3px 9px;
+      border-radius: 8px;
+    }
+
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    @media (min-width: 390px) {
+      .services-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    .service-btn {
+      min-height: 44px;
+      padding: 8px 6px;
+      border-radius: 11px;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      border: 1.5px solid transparent;
+      transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .service-btn.waiting {
+      background-color: var(--ios-orange-bg);
+      border-color: rgba(255, 149, 0, 0.28);
+      color: var(--ios-orange-text);
+    }
+
+    .service-btn.received {
+      background-color: var(--ios-green-bg);
+      border-color: rgba(52, 199, 89, 0.45);
+      color: var(--ios-green-text);
+    }
+
+    .card-note {
+      margin: 0;
+      padding-top: 8px;
+      border-top: 1px solid rgba(60, 60, 67, 0.08);
+      font-size: 12px;
+      color: var(--text-tertiary);
+      font-style: italic;
+    }
+
+    /* Pusty stan */
+    .empty-state {
+      background-color: var(--bg-card);
+      border-radius: 20px;
+      padding: 36px 20px;
+      text-align: center;
+      box-shadow: var(--shadow-card);
+      margin-top: 12px;
+    }
+    .empty-icon-circle {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background-color: var(--bg-grouped);
+      color: var(--text-tertiary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px;
+    }
+    .empty-title {
+      margin: 0 0 6px;
+      font-size: 17px;
+      font-weight: 700;
+    }
+    .empty-desc {
+      margin: 0 0 18px;
+      font-size: 14px;
+      color: var(--text-tertiary);
+    }
+
+    /* =========================================================================
+       6. PŁYWAJĄCY PRZYCISK "+" W PRAWYM DOLNYM ROGU (iOS FAB)
+       ========================================================================= */
+    .fab-add-btn {
+      position: fixed;
+      right: max(18px, calc(50vw - 342px));
+      bottom: max(22px, calc(env(safe-area-inset-bottom, 0px) + 18px));
+      z-index: 35;
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background-color: var(--ios-blue);
+      color: #FFFFFF;
+      box-shadow: var(--shadow-fab);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @media (max-width: 720px) {
+      .fab-add-btn {
+        right: 18px;
+      }
+    }
+
+    /* =========================================================================
+       7. MODALE / DOLNE ARKUSZE iOS (BOTTOM SHEETS)
+       ========================================================================= */
+    .sheet-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      transition: opacity 0.25s ease;
+    }
+
+    .sheet-overlay.closed {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.42);
+    }
+
+    .sheet-panel {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 720px;
+      max-height: 92vh;
+      background-color: var(--bg-grouped);
+      border-radius: 22px 22px 0 0;
+      box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.18);
+      display: flex;
+      flex-direction: column;
+      transform: translateY(0);
+      transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+
+    .sheet-overlay.closed .sheet-panel {
+      transform: translateY(100%);
+    }
+
+    .sheet-grabber-wrap {
+      padding: 10px 0 4px;
+      display: flex;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .sheet-grabber {
+      width: 38px;
+      height: 5px;
+      border-radius: 3px;
+      background-color: #C7C7CC;
+    }
+
+    .sheet-header {
+      padding: 8px 16px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--separator);
+      flex-shrink: 0;
+    }
+
+    .sheet-title {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .sheet-nav-btn {
+      min-height: 40px;
+      padding: 0 8px;
+      font-size: 16px;
+      color: var(--ios-blue);
+      font-weight: 500;
+    }
+    .sheet-nav-btn.bold {
+      font-weight: 700;
+    }
+
+    .sheet-scroll-body {
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* Grupowane formularze w stylu UITableView InsetGrouped */
+    .form-section-label {
+      margin: 0 0 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--text-secondary);
+    }
+
+    .grouped-box {
+      background-color: var(--bg-card);
+      border-radius: var(--radius-card);
+      overflow: hidden;
+      box-shadow: var(--shadow-card);
+    }
+
+    .grouped-row {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(60, 60, 67, 0.08);
+    }
+    .grouped-row:last-child {
+      border-bottom: none;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-tertiary);
+      margin-bottom: 5px;
+    }
+
+    .text-input, .textarea-input {
+      width: 100%;
+      border: none;
+      outline: none;
+      background: transparent;
+      font-size: 16px;
+      color: var(--text-primary);
+      padding: 2px 0;
+    }
+
+    .date-row-flex {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .date-input {
+      min-height: 42px;
+      padding: 6px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      background-color: var(--bg-grouped);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--ios-blue);
+      outline: none;
+    }
+
+    .chip-btn {
+      min-height: 40px;
+      padding: 6px 12px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .chip-btn.blue {
+      background-color: var(--ios-blue-bg);
+      color: var(--ios-blue);
+    }
+    .chip-btn.gray {
+      background-color: var(--bg-grouped);
+      color: var(--text-secondary);
+    }
+
+    .helper-hint {
+      margin: 8px 0 0;
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    /* Przełącznik iOS Switch */
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      min-height: 52px;
+      border-bottom: 1px solid rgba(60, 60, 67, 0.08);
+      cursor: pointer;
+    }
+    .switch-row:last-child {
+      border-bottom: none;
+    }
+
+    .ios-switch {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 51px;
+      height: 31px;
+      border-radius: 16px;
+      background-color: #E5E5EA;
+      position: relative;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      flex-shrink: 0;
+      margin: 0;
+    }
+    .ios-switch::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 27px;
+      height: 27px;
+      border-radius: 50%;
+      background-color: #FFFFFF;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .ios-switch:checked {
+      background-color: var(--ios-green);
+    }
+    .ios-switch:checked::after {
+      transform: translateX(20px);
+    }
+
+    .form-error-banner {
+      background-color: var(--ios-red-bg);
+      border: 1px solid rgba(255, 59, 48, 0.3);
+      color: var(--ios-red);
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .danger-full-btn {
+      width: 100%;
+      min-height: 48px;
+      border-radius: var(--radius-card);
+      background-color: var(--bg-card);
+      color: var(--ios-red);
+      font-size: 16px;
+      font-weight: 600;
+      box-shadow: var(--shadow-card);
+    }
+
+    .confirm-box {
+      background-color: var(--bg-card);
+      border: 1.5px solid rgba(255, 59, 48, 0.35);
+      border-radius: var(--radius-card);
+      padding: 14px;
+      text-align: center;
+    }
+    .confirm-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .btn-cancel-confirm {
+      min-height: 44px;
+      border-radius: 12px;
+      background-color: var(--bg-grouped);
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    .btn-danger-confirm {
+      min-height: 44px;
+      border-radius: 12px;
+      background-color: var(--ios-red);
+      color: #FFFFFF;
+      font-weight: 700;
+    }
+
+    /* Statystyki i narzędzia */
+    .stats-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      background-color: var(--bg-card);
+      border-radius: var(--radius-card);
+      padding: 14px 8px;
+      text-align: center;
+      box-shadow: var(--shadow-card);
+    }
+    .stat-col:nth-child(2) {
+      border-left: 1px solid rgba(60, 60, 67, 0.1);
+      border-right: 1px solid rgba(60, 60, 67, 0.1);
+    }
+    .stat-num {
+      font-size: 22px;
+      font-weight: 700;
+      margin: 0;
+    }
+    .stat-lbl {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-tertiary);
+      margin: 2px 0 0;
+    }
+
+    .tool-row-btn {
+      width: 100%;
+      min-height: 54px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(60, 60, 67, 0.08);
+      cursor: pointer;
+    }
+    .tool-row-btn:last-child {
+      border-bottom: none;
+    }
+    .tool-row-btn:active {
+      background-color: rgba(0, 0, 0, 0.03);
+    }
+
+    /* Karta podglądu ikony i kroków instalacji iOS */
+    .install-hero-card {
+      background-color: var(--bg-card);
+      border-radius: var(--radius-card);
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .install-icon-preview {
+      width: 72px;
+      height: 72px;
+      border-radius: 17px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
+      flex-shrink: 0;
+      background-color: var(--ios-blue);
+    }
+
+    .install-step-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(60, 60, 67, 0.08);
+    }
+    .install-step-row:last-child {
+      border-bottom: none;
+    }
+
+    .step-number-circle {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background-color: var(--ios-blue);
+      color: #FFFFFF;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .ios-tip-card {
+      background-color: var(--ios-blue-bg);
+      border: 1px solid rgba(0, 122, 255, 0.22);
+      border-radius: var(--radius-card);
+      padding: 14px;
+      font-size: 13px;
+      color: var(--text-primary);
+      line-height: 1.45;
+    }
+
+    .ios-warn-card {
+      background-color: var(--ios-orange-bg);
+      border: 1px solid rgba(255, 149, 0, 0.3);
+      border-radius: var(--radius-card);
+      padding: 14px;
+      font-size: 13px;
+      color: var(--text-primary);
+      line-height: 1.45;
+    }
+
+    .full-primary-btn {
+      width: 100%;
+      min-height: 48px;
+      padding: 10px 16px;
+      border-radius: 14px;
+      background-color: var(--ios-blue);
+      color: #FFFFFF;
+      font-size: 15px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 2px 8px rgba(0, 122, 255, 0.28);
+    }
+
+    /* =========================================================================
+       8. POWIADOMIENIE TOAST iOS
+       ========================================================================= */
+    .toast-pill {
+      position: fixed;
+      top: max(16px, calc(env(safe-area-inset-top, 0px) + 12px));
+      left: 50%;
+      transform: translate(-50%, -24px);
+      z-index: 100;
+      background-color: rgba(28, 28, 30, 0.94);
+      color: #FFFFFF;
+      padding: 10px 18px;
+      border-radius: var(--radius-pill);
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      max-width: 92vw;
+      white-space: nowrap;
+    }
+    .toast-pill.visible {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ukryty canvas do dynamicznego generowania PNG 180x180 i 512x512 dla iOS -->
+  <canvas id="appIconCanvas" class="hidden" aria-hidden="true"></canvas>
+
+  <!-- Baner trybu podglądu z przykładowymi danymi -->
+  <div id="sampleBanner" class="sample-banner hidden">
+    <div class="sample-banner-inner">
+      <span class="sample-banner-text">
+        <span class="sample-dot"></span>
+        <span>Tryb podglądu (4 przykładowe imprezy z alertami &lt; 2 dni)</span>
+      </span>
+      <button type="button" onclick="clearAllData(false)" class="sample-clear-btn pressable">
+        Wyczyść i zacznij od zera
+      </button>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       NAGŁÓWEK APLIKACJI (Sticky iOS)
+       ===================================================================== -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="header-top-row">
+        <div class="title-group">
+          <div class="title-row">
+            <h1 class="app-title">Imprezy Masowe</h1>
+            <span id="totalEventsBadge" class="total-badge">0 imprez</span>
+          </div>
+          <p id="todaySubtitle" class="today-subtitle">Kalendarz terminów</p>
+        </div>
+
+        <div class="header-actions">
+          <!-- Przycisk "Powiadomienia" (Push 2 dni przed + .ics) -->
+          <button id="notifyHeaderBtn" type="button" onclick="openNotificationsSheet()" class="notify-header-btn pressable">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span>Powiadomienia</span>
+            <span id="notifyHeaderDot" class="notify-dot hidden"></span>
+          </button>
+
+          <!-- Przycisk "Zainstaluj" (automatycznie ukrywany gdy standalone === true) -->
+          <button id="installHeaderBtn" type="button" onclick="openInstallSheet()" class="install-header-btn pressable">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+              <polyline points="16 6 12 2 8 6"></polyline>
+              <line x1="12" y1="2" x2="12" y2="15"></line>
+            </svg>
+            <span>Zainstaluj</span>
+          </button>
+
+          <!-- Przycisk "Kopia / Eksport" -->
+          <button type="button" onclick="openToolsSheet()" class="backup-header-btn pressable">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Kopia / Eksport</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Wyszukiwarka tekstowa -->
+      <div class="search-wrapper">
+        <span class="search-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </span>
+        <input
+          id="searchInput"
+          type="search"
+          class="search-input"
+          placeholder="Szukaj po nazwie imprezy lub obiekcie..."
+          oninput="handleSearch(this.value)"
+        />
+        <button id="searchClearBtn" type="button" onclick="clearSearch()" aria-label="Wyczyść" class="search-clear-btn hidden">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Pasek KPI (klikalne kafelki filtrujące) -->
+      <div id="kpiStrip" class="kpi-strip"></div>
+
+      <!-- Pasek informacji o priorytecie i filtr roku -->
+      <div class="controls-row">
+        <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary);">
+          Góra: <strong>DO ZŁOŻENIA</strong> (najmniej dni) • Dół: <strong>ZŁOŻONE</strong>
+        </div>
+
+        <div class="right-controls">
+          <select id="yearFilterSelect" onchange="setYearFilter(this.value)" aria-label="Filtr roku" class="year-select">
+            <option value="all">Wszystkie lata</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- =====================================================================
+       GŁÓWNA LISTA IMPREZ
+       ===================================================================== -->
+  <main class="main-content">
+    <div id="eventsContainer"></div>
+  </main>
+
+  <!-- Pływający przycisk "+" w prawym dolnym rogu do szybkiego dodawania imprezy -->
+  <button type="button" onclick="openEventSheet()" aria-label="Dodaj imprezę" class="fab-add-btn pressable">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
+  </button>
+
+  <!-- =====================================================================
+       POWIADOMIENIE TOAST
+       ===================================================================== -->
+  <div id="toastPill" class="toast-pill" role="status" aria-live="polite">
+    <span id="toastIcon" style="color: #34C759;">✓</span>
+    <span id="toastMessage">Zapisano</span>
+  </div>
+
+  <!-- =====================================================================
+       MODAL 1: DODAWANIE / EDYCJA IMPREZY MASOWEJ
+       ===================================================================== -->
+  <div id="eventSheet" class="sheet-overlay closed" aria-hidden="true">
+    <div class="sheet-backdrop" onclick="closeEventSheet()"></div>
+    <div class="sheet-panel">
+      <div class="sheet-grabber-wrap"><div class="sheet-grabber"></div></div>
+
+      <div class="sheet-header">
+        <button type="button" onclick="closeEventSheet()" class="sheet-nav-btn">Anuluj</button>
+        <h2 id="eventSheetTitle" class="sheet-title">Nowa impreza</h2>
+        <button type="button" onclick="saveEventForm()" class="sheet-nav-btn bold">Zapisz</button>
+      </div>
+
+      <form id="eventForm" onsubmit="event.preventDefault(); saveEventForm();" class="sheet-scroll-body safe-bottom">
+        <input type="hidden" id="editEventId" />
+
+        <div id="formErrorBanner" class="form-error-banner hidden"></div>
+
+        <!-- Sekcja 1: Podstawowe dane -->
+        <div>
+          <p class="form-section-label">Dane imprezy masowej</p>
+          <div class="grouped-box">
+            <div class="grouped-row">
+              <label for="inputName" class="field-label">Nazwa imprezy masowej *</label>
+              <input id="inputName" type="text" class="text-input" placeholder="np. Mecz Pogoń – Legia lub Koncert" required />
+            </div>
+
+            <div class="grouped-row">
+              <label for="inputVenue" class="field-label">Miejsce / Obiekt (opcjonalnie)</label>
+              <input id="inputVenue" type="text" class="text-input" placeholder="np. Netto Arena, Stadion Miejski..." />
+            </div>
+
+            <div class="grouped-row">
+              <div class="date-row-flex">
+                <span style="font-size: 15px; font-weight: 600;">Data imprezy *</span>
+                <input id="inputEventDate" type="date" class="date-input" onchange="updateFormHints()" required />
+              </div>
+              <p id="hintEventDeadline" class="helper-hint"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sekcja 2: Data złożenia dokumentów -->
+        <div>
+          <p class="form-section-label">Dokumentacja w urzędzie</p>
+          <div class="grouped-box">
+            <div class="grouped-row">
+              <div class="date-row-flex">
+                <span style="font-size: 15px; font-weight: 600;">Data złożenia dokumentów</span>
+                <input id="inputSubmissionDate" type="date" class="date-input" style="color: var(--text-primary);" onchange="updateFormHints()" />
+              </div>
+              <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+                <button type="button" onclick="fillTodayDate('inputSubmissionDate')" class="chip-btn blue pressable">
+                  Wpisz dzisiejszą datę
+                </button>
+                <button type="button" onclick="clearDateField('inputSubmissionDate')" class="chip-btn gray pressable">
+                  Wyczyść datę
+                </button>
+              </div>
+              <p id="hintSubmissionDeadlines" class="helper-hint"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sekcja 3: Opinie 4 służb -->
+        <div>
+          <p class="form-section-label">Otrzymane opinie służb (14 dni)</p>
+          <div class="grouped-box">
+            <label class="switch-row">
+              <span style="font-size: 15px; font-weight: 600;">1. Policja</span>
+              <input type="checkbox" id="chkPolicja" class="ios-switch" />
+            </label>
+            <label class="switch-row">
+              <span style="font-size: 15px; font-weight: 600;">2. Straż Pożarna</span>
+              <input type="checkbox" id="chkPsp" class="ios-switch" />
+            </label>
+            <label class="switch-row">
+              <span style="font-size: 15px; font-weight: 600;">3. Sanepid</span>
+              <input type="checkbox" id="chkSanepid" class="ios-switch" />
+            </label>
+            <label class="switch-row">
+              <span style="font-size: 15px; font-weight: 600;">4. Pogotowie</span>
+              <input type="checkbox" id="chkZrm" class="ios-switch" />
+            </label>
+          </div>
+        </div>
+
+        <!-- Sekcja 4: Decyzja UM -->
+        <div>
+          <p class="form-section-label">Decyzja UM (30 dni od złożenia)</p>
+          <div class="grouped-box">
+            <label class="switch-row">
+              <span style="font-size: 15px; font-weight: 600;">Decyzja UM wydana / odebrana</span>
+              <input type="checkbox" id="chkDecision" class="ios-switch" onchange="toggleFormDecisionDate()" />
+            </label>
+            <div id="formDecisionDateRow" class="grouped-row hidden">
+              <div class="date-row-flex">
+                <span style="font-size: 14px; font-weight: 500;">Data odbioru Decyzji UM</span>
+                <input id="inputDecisionDate" type="date" class="date-input" style="color: var(--ios-green-text);" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sekcja 5: Notatki -->
+        <div>
+          <p class="form-section-label">Notatki</p>
+          <div class="grouped-box">
+            <div class="grouped-row">
+              <textarea id="inputNote" rows="3" class="textarea-input" placeholder="Sygnatura akt, liczba uczestników, uwagi..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sekcja usuwania (tylko w trybie edycji) -->
+        <div id="deleteEventWrapper" class="hidden">
+          <button id="deleteInitBtn" type="button" onclick="showDeleteConfirmBox()" class="danger-full-btn pressable">
+            Usuń tę imprezę
+          </button>
+          <div id="deleteConfirmBox" class="confirm-box hidden">
+            <div style="font-size: 14px; font-weight: 700;">Czy na pewno trwale usunąć tę imprezę?</div>
+            <div class="confirm-grid">
+              <button type="button" onclick="hideDeleteConfirmBox()" class="btn-cancel-confirm">Anuluj</button>
+              <button type="button" onclick="executeDeleteEvent()" class="btn-danger-confirm">Tak, usuń</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MODAL 3: SZYBKIE OZNACZENIE ODBIORU DECYZJI UM Z KARTY IMPREZY
+       ===================================================================== -->
+  <div id="quickDecisionSheet" class="sheet-overlay closed" aria-hidden="true">
+    <div class="sheet-backdrop" onclick="closeQuickDecisionSheet()"></div>
+    <div class="sheet-panel">
+      <div class="sheet-grabber-wrap"><div class="sheet-grabber"></div></div>
+
+      <div class="sheet-header">
+        <button type="button" onclick="closeQuickDecisionSheet()" class="sheet-nav-btn">Anuluj</button>
+        <h2 class="sheet-title">Odbiór Decyzji UM</h2>
+        <button type="button" onclick="confirmQuickDecision()" class="sheet-nav-btn bold">Zatwierdź</button>
+      </div>
+
+      <div class="sheet-scroll-body safe-bottom">
+        <div class="grouped-box">
+          <div class="grouped-row">
+            <div id="quickDecisionTitle" style="font-size: 16px; font-weight: 700;"></div>
+            <div id="quickDecisionInfo" class="helper-hint"></div>
+          </div>
+          <div class="grouped-row">
+            <div class="date-row-flex">
+              <span style="font-size: 15px; font-weight: 600;">Data odbioru Decyzji UM</span>
+              <input id="quickDecisionDateInput" type="date" class="date-input" style="color: var(--ios-green-text);" />
+            </div>
+            <div style="margin-top: 10px;">
+              <button type="button" onclick="fillTodayDate('quickDecisionDateInput')" class="chip-btn blue pressable">
+                Wpisz dzisiejszą datę
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" onclick="confirmQuickDecision()" class="full-primary-btn pressable" style="background-color: var(--ios-green); box-shadow: 0 2px 8px rgba(52, 199, 89, 0.3);">
+          ✓ Potwierdź odbiór Decyzji UM
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MODAL 6: POWIADOMIENIA PUSH (2 DNI PRZED TERMINEM) I ALARMY KALENDARZA .ICS
+       ===================================================================== -->
+  <div id="notificationsSheet" class="sheet-overlay closed" aria-hidden="true">
+    <div class="sheet-backdrop" onclick="closeNotificationsSheet()"></div>
+    <div class="sheet-panel">
+      <div class="sheet-grabber-wrap"><div class="sheet-grabber"></div></div>
+
+      <div class="sheet-header">
+        <span style="width: 56px;"></span>
+        <h2 class="sheet-title">Powiadomienia (2 dni przed)</h2>
+        <button type="button" onclick="closeNotificationsSheet()" class="sheet-nav-btn bold">Gotowe</button>
+      </div>
+
+      <div class="sheet-scroll-body safe-bottom">
+        <!-- Status powiadomień Push PWA -->
+        <div>
+          <p class="form-section-label">Powiadomienia Push w aplikacji (iOS PWA)</p>
+          <div class="grouped-box">
+            <div class="grouped-row">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+                <span style="font-size: 15px; font-weight: 700;">Status uprawnień Push</span>
+                <span id="pushPermissionBadge" class="status-badge badge-green">Sprawdzanie...</span>
+              </div>
+              <p class="helper-hint">
+                Aplikacja automatycznie sprawdza wszystkie terminy (złożenie dokumentów, opinie służb, Decyzja UM) i wysyła powiadomienie systemowe, gdy do terminu zostają <strong>2 dni lub mniej</strong>.
+              </p>
+              <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+                <button type="button" id="requestPushBtn" onclick="requestPushPermission()" class="quick-action-btn pressable">
+                  Włącz powiadomienia Push
+                </button>
+                <button type="button" onclick="sendTestNotification()" class="chip-btn blue pressable">
+                  Wyślij testowe powiadomienie
+                </button>
+              </div>
+            </div>
+
+            <label class="switch-row">
+              <div>
+                <div style="font-size: 15px; font-weight: 600;">Auto-alerty przy otwarciu aplikacji</div>
+                <div style="font-size: 12px; color: var(--text-tertiary);">Powiadamiaj raz dziennie gdy termin &le; 2 dni</div>
+              </div>
+              <input type="checkbox" id="chkAutoNotify" class="ios-switch" onchange="toggleAutoNotify(this.checked)" />
+            </label>
+          </div>
+        </div>
+
+        <!-- Gwarantowane powiadomienia push na ekran blokady przez Kalendarz iPhone (.ics) -->
+        <div>
+          <p class="form-section-label">Gwarantowane alarmy w tle na iPhone (Kalendarz .ics)</p>
+          <div class="grouped-box">
+            <div class="grouped-row">
+              <div style="font-size: 15px; font-weight: 700; margin-bottom: 4px;">
+                Dodaj alarmy (2 dni przed terminem) do Kalendarza iOS
+              </div>
+              <p class="helper-hint" style="margin-top: 0;">
+                System iOS ogranicza powiadomienia w tle dla aplikacji webowych, gdy są całkowicie zamknięte. Eksport do pliku <strong>.ics</strong> zapisuje wszystkie aktywne terminy (złożenie wniosku, opinie służb, Decyzja UM) w systemowym Kalendarzu iPhone’a z wbudowanym alarmem <strong>dokładnie 2 dni przed terminem (TRIGGER:-P2D)</strong> — dzięki temu telefon wyśle powiadomienie push na ekran blokady nawet w trybie offline.
+              </p>
+              <div style="margin-top: 12px;">
+                <button type="button" onclick="exportAllICS()" class="full-primary-btn pressable">
+                  📅 Dodaj alarmy (2 dni przed) do Kalendarza iPhone (.ics)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Podgląd aktywnych terminów <= 2 dni -->
+        <div>
+          <p class="form-section-label">Aktualne terminy wymagające uwagi (&le; 2 dni)</p>
+          <div id="upcomingAlertsList" class="grouped-box"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MODAL 4: INSTALACJA NA EKRANIE GŁÓWNYM IPHONE'A (iOS PWA)
+       ===================================================================== -->
+  <div id="installSheet" class="sheet-overlay closed" aria-hidden="true">
+    <div class="sheet-backdrop" onclick="closeInstallSheet()"></div>
+    <div class="sheet-panel">
+      <div class="sheet-grabber-wrap"><div class="sheet-grabber"></div></div>
+
+      <div class="sheet-header">
+        <span style="width: 56px;"></span>
+        <h2 class="sheet-title">Instalacja na iPhone</h2>
+        <button type="button" onclick="closeInstallSheet()" class="sheet-nav-btn bold">Gotowe</button>
+      </div>
+
+      <div class="sheet-scroll-body safe-bottom">
+        <!-- Podgląd wygenerowanej ikony PNG -->
+        <div class="install-hero-card">
+          <img id="installPreviewIcon" class="install-icon-preview" alt="Ikona aplikacji Imprezy Masowe" />
+          <div>
+            <div style="font-size: 18px; font-weight: 700; color: var(--text-primary);">Imprezy Masowe</div>
+            <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">
+              Samodzielna aplikacja na pulpit iPhone’a (tryb pełnoekranowy i offline)
+            </div>
+            <div id="installProtocolBadge" style="margin-top: 6px; font-size: 11px; font-weight: 700;"></div>
+          </div>
+        </div>
+
+        <!-- Ostrzeżenie jeśli plik otwarto z file:// lub podglądu -->
+        <div id="installFileWarning" class="ios-warn-card hidden">
+          <strong style="display: block; margin-bottom: 4px; color: var(--ios-orange-text);">
+            Ważne: iOS wymaga adresu https:// do instalacji
+          </strong>
+          Apple Safari blokuje dodawanie aplikacji do ekranu początkowego bezpośrednio z lokalnego pliku <code>file://</code>.
+          Aby zainstalować aplikację na iPhonie:
+          <br />1. Zmień nazwę pliku na <strong>index.html</strong>.
+          <br />2. Przeciągnij go na darmowy hosting <strong>app.netlify.com/drop</strong> lub <strong>tiiny.host</strong> (zajmuje to 30 sekund).
+          <br />3. Otwórz otrzymany link <code>https://...</code> w przeglądarce <strong>Safari</strong> na iPhonie.
+        </div>
+
+        <!-- Instrukcja krok po kroku dla Safari -->
+        <div>
+          <p class="form-section-label">Instrukcja instalacji w Safari (3 kroki)</p>
+          <div class="grouped-box">
+            <div class="install-step-row">
+              <div class="step-number-circle">1</div>
+              <div style="font-size: 14px;">
+                Otwórz tę stronę w przeglądarce <strong>Safari</strong> na iPhonie i dotknij ikony
+                <strong>Udostępnij</strong>
+                <span style="display: inline-flex; vertical-align: middle; background: var(--bg-grouped); padding: 2px 6px; border-radius: 6px; color: var(--ios-blue);">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path>
+                    <polyline points="16 6 12 2 8 6"></polyline>
+                    <line x1="12" y1="2" x2="12" y2="15"></line>
+                  </svg>
+                </span>
+                na dolnym pasku narzędzi.
+              </div>
+            </div>
+
+            <div class="install-step-row">
+              <div class="step-number-circle">2</div>
+              <div style="font-size: 14px;">
+                Przewiń menu udostępniania w dół i wybierz opcję
+                <strong>„Do ekranu początkowego”</strong> (<em>Add to Home Screen</em>).
+              </div>
+            </div>
+
+            <div class="install-step-row">
+              <div class="step-number-circle">3</div>
+              <div style="font-size: 14px;">
+                Potwierdź nazwę <strong>Imprezy Masowe</strong> i dotknij <strong>„Dodaj”</strong> w prawym górnym rogu. Aplikacja pojawi się na pulpicie iPhone’a z własną ikoną PNG.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Przycisk kopiowania adresu strony -->
+        <div>
+          <button type="button" onclick="copyPageLink()" class="full-primary-btn pressable">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span id="copyLinkBtnText">Kopiuj link strony</span>
+          </button>
+        </div>
+
+        <div class="ios-tip-card">
+          <strong>Wskazówka o danych na iOS:</strong> Safari i ikona na ekranie głównym posiadają osobne pamięci podręczne. Jeśli wprowadzisz imprezy w Safari przed instalacją, użyj przycisku <strong>„Kopia / Eksport → JSON”</strong>, aby przenieść dane jednym kliknięciem do zainstalowanej ikony.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MODAL 5: MENU KOPIA / EKSPORT (CSV, JSON, DANE TESTOWE, CZYSZCZENIE)
+       ===================================================================== -->
+  <div id="toolsSheet" class="sheet-overlay closed" aria-hidden="true">
+    <div class="sheet-backdrop" onclick="closeToolsSheet()"></div>
+    <div class="sheet-panel">
+      <div class="sheet-grabber-wrap"><div class="sheet-grabber"></div></div>
+
+      <div class="sheet-header">
+        <span style="width: 56px;"></span>
+        <h2 class="sheet-title">Kopia / Eksport</h2>
+        <button type="button" onclick="closeToolsSheet()" class="sheet-nav-btn bold">Gotowe</button>
+      </div>
+
+      <div class="sheet-scroll-body safe-bottom">
+        <!-- Statystyki -->
+        <div class="stats-grid-3">
+          <div class="stat-col">
+            <p id="toolStatTotal" class="stat-num">0</p>
+            <p class="stat-lbl">Wszystkie</p>
+          </div>
+          <div class="stat-col">
+            <p id="toolStatActive" class="stat-num" style="color: var(--ios-blue);">0</p>
+            <p class="stat-lbl">W toku</p>
+          </div>
+          <div class="stat-col">
+            <p id="toolStatDone" class="stat-num" style="color: var(--ios-green-text);">0</p>
+            <p class="stat-lbl">Zakończone</p>
+          </div>
+        </div>
+
+        <!-- Eksport i Kopia zapasowa -->
+        <div>
+          <p class="form-section-label">Archiwizacja i Raporty (~130 imprez/rok)</p>
+          <div class="grouped-box">
+            <button type="button" onclick="exportCSV()" class="tool-row-btn">
+              <div>
+                <div style="font-size: 15px; font-weight: 600;">Eksportuj do CSV (Excel / Numbers)</div>
+                <div style="font-size: 12px; color: var(--text-tertiary);">Pełne zestawienie z polskimi znakami UTF-8 BOM</div>
+              </div>
+              <span style="color: var(--ios-green-text); font-weight: 700; font-size: 13px;">CSV</span>
+            </button>
+
+            <button type="button" onclick="exportJSON()" class="tool-row-btn">
+              <div>
+                <div style="font-size: 15px; font-weight: 600;">Pobierz kopię zapasową (JSON)</div>
+                <div style="font-size: 12px; color: var(--text-tertiary);">Zapisz w iCloud / Plikach lub przenieś na pulpit</div>
+              </div>
+              <span style="color: var(--ios-blue); font-weight: 700; font-size: 13px;">JSON</span>
+            </button>
+
+            <label class="tool-row-btn">
+              <div>
+                <div style="font-size: 15px; font-weight: 600;">Wczytaj kopię zapasową (Import JSON)</div>
+                <div style="font-size: 12px; color: var(--text-tertiary);">Odtwórz zapisaną listę imprez z pliku .json</div>
+              </div>
+              <span style="color: var(--ios-blue); font-weight: 700; font-size: 13px;">Wybierz</span>
+              <input type="file" accept=".json,application/json" onchange="importJSON(event)" class="hidden" />
+            </label>
+          </div>
+        </div>
+
+        <!-- Zarządzanie danymi -->
+        <div>
+          <p class="form-section-label">Dane testowe i czyszczenie</p>
+          <div class="grouped-box">
+            <button type="button" onclick="loadSampleEvents(true)" class="tool-row-btn">
+              <div>
+                <div style="font-size: 15px; font-weight: 600; color: var(--ios-blue);">
+                  Załaduj 4 przykładowe imprezy testowe (z alertami &lt; 2 dni)
+                </div>
+                <div style="font-size: 12px; color: var(--text-tertiary);">
+                  Pozwala od razu przetestować migające karty i powiadomienia
+                </div>
+              </div>
+            </button>
+
+            <button type="button" onclick="document.getElementById('toolsClearConfirm').classList.remove('hidden')" class="tool-row-btn">
+              <div style="font-size: 15px; font-weight: 600; color: var(--ios-red);">
+                Wyczyść wszystkie dane
+              </div>
+            </button>
+
+            <div id="toolsClearConfirm" class="hidden" style="padding: 14px; background-color: var(--ios-red-bg);">
+              <div style="font-size: 13px; font-weight: 700; color: var(--ios-red);">
+                Czy na pewno usunąć wszystkie zapisane imprezy?
+              </div>
+              <div class="confirm-grid">
+                <button type="button" onclick="document.getElementById('toolsClearConfirm').classList.add('hidden')" class="btn-cancel-confirm">
+                  Anuluj
+                </button>
+                <button type="button" onclick="clearAllData(true)" class="btn-danger-confirm">
+                  Wyczyść wszystko
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       LOGIKA APLIKACJI (100% Vanilla JavaScript)
+       ===================================================================== -->
+  <script>
+    // =========================================================================
+    // 1. GENERATOR IKON PNG NA <CANVAS> (180x180 & 512x512) + MANIFEST + SW
+    // =========================================================================
+    let generatedIcon180DataURL = '';
+    let generatedIcon512DataURL = '';
+
+    /**
+     * Rysuje natywną ikonę aplikacji w stylu iOS na elemencie <canvas>
+     * i zwraca obrazek w formacie data:image/png;base64,...
+     */
+    function generateAppIconPNG(size) {
+      const canvas = document.getElementById('appIconCanvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const s = size / 180; // współczynnik skalowania bazowany na 180px
+
+      ctx.clearRect(0, 0, size, size);
+
+      // 1. Tło gradientowe iOS Blue (#0A84FF -> #0051D5)
+      const bgGrad = ctx.createLinearGradient(0, 0, size, size);
+      bgGrad.addColorStop(0, '#0A84FF');
+      bgGrad.addColorStop(1, '#0051D5');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, size, size);
+
+      // Subtelny blask u góry
+      const glowGrad = ctx.createRadialGradient(size * 0.5, size * 0.15, size * 0.05, size * 0.5, size * 0.15, size * 0.75);
+      glowGrad.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
+      glowGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = glowGrad;
+      ctx.fillRect(0, 0, size, size);
+
+      // Funkcja pomocnicza do zaokrąglonych prostokątów
+      function roundRectPath(x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+      }
+
+      // 2. Biała karta kalendarza z cieniem
+      ctx.save();
+      ctx.shadowColor = 'rgba(0, 25, 75, 0.28)';
+      ctx.shadowBlur = 14 * s;
+      ctx.shadowOffsetY = 6 * s;
+      roundRectPath(30 * s, 38 * s, 120 * s, 108 * s, 22 * s);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fill();
+      ctx.restore();
+
+      // 3. Czerwony górny pasek kalendarza (#FF3B30)
+      ctx.save();
+      roundRectPath(30 * s, 38 * s, 120 * s, 108 * s, 22 * s);
+      ctx.clip();
+      ctx.fillStyle = '#FF3B30';
+      ctx.fillRect(30 * s, 38 * s, 120 * s, 32 * s);
+      ctx.restore();
+
+      // 4. Dwa metaliczne pierścienie kalendarza u góry
+      [62 * s, 118 * s].forEach(pinX => {
+        roundRectPath(pinX - 5 * s, 28 * s, 10 * s, 18 * s, 5 * s);
+        ctx.fillStyle = '#F2F2F7';
+        ctx.fill();
+        ctx.lineWidth = 1.5 * s;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.12)';
+        ctx.stroke();
+      });
+
+      // 5. Wyraźny zielony znak potwierdzenia (#34C759)
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(62 * s, 106 * s);
+      ctx.lineTo(81 * s, 124 * s);
+      ctx.lineTo(120 * s, 85 * s);
+      ctx.strokeStyle = '#34C759';
+      ctx.lineWidth = 13.5 * s;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+      ctx.restore();
+
+      return canvas.toDataURL('image/png');
+    }
+
+    /**
+     * Wstrzykuje PNG do <link rel="apple-touch-icon"> oraz dynamicznego manifestu PWA
+     * i rejestruje Service Worker do pracy offline.
+     */
+    function setupIOSPWA() {
+      try {
+        generatedIcon180DataURL = generateAppIconPNG(180);
+        generatedIcon512DataURL = generateAppIconPNG(512);
+
+        const appleIconLink = document.getElementById('appleTouchIconLink');
+        if (appleIconLink) appleIconLink.href = generatedIcon180DataURL;
+
+        const faviconLink = document.getElementById('faviconIconLink');
+        if (faviconLink) faviconLink.href = generatedIcon180DataURL;
+
+        const previewImg = document.getElementById('installPreviewIcon');
+        if (previewImg) previewImg.src = generatedIcon180DataURL;
+
+        // Dynamiczny Web App Manifest
+        const manifestObj = {
+          name: 'Imprezy Masowe',
+          short_name: 'Imprezy',
+          description: 'Terminarz dokumentacji i decyzji dla imprez masowych (30/14/30 dni)',
+          start_url: '.',
+          display: 'standalone',
+          orientation: 'portrait',
+          background_color: '#F2F2F7',
+          theme_color: '#007AFF',
+          icons: [
+            {
+              src: generatedIcon180DataURL,
+              sizes: '180x180',
+              type: 'image/png',
+              purpose: 'any maskable'
+            },
+            {
+              src: generatedIcon512DataURL,
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any maskable'
+            }
+          ]
+        };
+
+        const manifestLink = document.getElementById('webManifestLink');
+        if (manifestLink) {
+          manifestLink.href = 'data:application/manifest+json;charset=utf-8,' +
+            encodeURIComponent(JSON.stringify(manifestObj));
+        }
+      } catch (e) {
+        // Bezpieczny fallback w razie ograniczeń canvasa
+      }
+
+      // Ukryj przycisk "Zainstaluj" gdy aplikacja jest już uruchomiona z ekranu głównego iPhone'a
+      const isStandalone = window.navigator.standalone === true ||
+        (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+      if (isStandalone) {
+        const installBtn = document.getElementById('installHeaderBtn');
+        if (installBtn) installBtn.classList.add('hidden');
+      }
+
+      // Rejestracja Service Workera do pracy offline (przez Blob lub ./sw.js na HTTPS)
+      registerOfflineServiceWorker();
+    }
+
+    function registerOfflineServiceWorker() {
+      if (!('serviceWorker' in navigator)) return;
+      const isSecureContext = window.location.protocol === 'https:' ||
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1';
+      if (!isSecureContext) return;
+
+      const swCode = `
+        const CACHE_NAME = 'imprezy-masowe-pwa-v3';
+        self.addEventListener('install', (event) => {
+          self.skipWaiting();
+          event.waitUntil(
+            caches.open(CACHE_NAME).then((cache) => cache.addAll(['./']).catch(() => {}))
+          );
+        });
+        self.addEventListener('activate', (event) => {
+          event.waitUntil(self.clients.claim());
+        });
+        self.addEventListener('fetch', (event) => {
+          if (event.request.method !== 'GET') return;
+          event.respondWith(
+            caches.match(event.request).then((cached) => {
+              const networkFetch = fetch(event.request).then((response) => {
+                if (response && response.status === 200) {
+                  const copy = response.clone();
+                  caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+                }
+                return response;
+              }).catch(() => cached);
+              return cached || networkFetch;
+            })
+          );
+        });
+      `;
+
+      try {
+        const blob = new Blob([swCode], { type: 'application/javascript' });
+        const blobUrl = URL.createObjectURL(blob);
+        navigator.serviceWorker.register(blobUrl).catch(() => {
+          // Fallback do pliku ./sw.js jeśli przeglądarka blokuje Blob SW
+          navigator.serviceWorker.register('./sw.js').catch(() => {});
+        });
+      } catch (e) {
+        try {
+          navigator.serviceWorker.register('./sw.js').catch(() => {});
+        } catch (err) {
+          // Ignoruj gdy środowisko nie wspiera SW
+        }
+      }
+    }
+
+    // =========================================================================
+    // 2. BEZPIECZNY ZAPIS STANU (localStorage + fallback do RAM window._memoryStore)
+    // =========================================================================
+    window._memoryStore = window._memoryStore || {};
+
+    const safeStorage = {
+      getItem(key) {
+        try {
+          return window.localStorage.getItem(key);
+        } catch (e) {
+          return Object.prototype.hasOwnProperty.call(window._memoryStore, key)
+            ? window._memoryStore[key]
+            : null;
+        }
+      },
+      setItem(key, value) {
+        window._memoryStore[key] = value;
+        try {
+          window.localStorage.setItem(key, value);
+        } catch (e) {
+          // Fallback do pamięci RAM działa automatycznie
+        }
+      }
+    };
+
+    const STORAGE_KEY = 'imprezy_masowe_pwa_v3';
+    const LEGACY_STORAGE_KEYS = [
+      'imprezy_masowe_pwa_v3',
+      'imprezy_masowe_v1',
+      'imprezy_masowe_db',
+      'mass_events_v1'
+    ];
+    const SAMPLE_BANNER_KEY = 'imprezy_masowe_sample_mode_v3';
+    const NOTIFIED_HISTORY_KEY = 'imprezy_masowe_notified_v1';
+    const AUTO_NOTIFY_KEY = 'imprezy_masowe_notify_enabled_v1';
+
+    // =========================================================================
+    // 3. STAN APLIKACJI I STAŁE JĘZYKOWE
+    // =========================================================================
+    let events = [];
+    let activeFilter = 'all';      // 'all' | 'urgent' | 'to_submit' | 'opinions' | 'decision' | 'done'
+    let activeYear = 'all';        // 'all' | '2026' | '2027' ...
+    let searchQuery = '';
+    let quickSubmitEventId = null;
+    let quickDecisionEventId = null;
+
+    const MONTHS_SHORT = [
+      'sty', 'lut', 'mar', 'kwi', 'maj', 'cze',
+      'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'
+    ];
+
+    const DAYS_SHORT = ['ndz.', 'pon.', 'wt.', 'śr.', 'czw.', 'pt.', 'sob.'];
+
+    // =========================================================================
+    // 4. PRECYZYJNA OBSŁUGA DAT (Bez błędów stref czasowych na iOS Safari)
+    // =========================================================================
+    function parseLocalDate(dateStr) {
+      if (!dateStr || typeof dateStr !== 'string') return null;
+      const parts = dateStr.split('-');
+      if (parts.length !== 3) return null;
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      const day = parseInt(parts[2], 10);
+      if (isNaN(year) || isNaN(month) || isNaN(day)) return null;
+      return new Date(year, month - 1, day, 12, 0, 0, 0);
+    }
+
+    function formatISODate(dateObj) {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function getTodayISO() {
+      const now = new Date();
+      const localNoon = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0, 0);
+      return formatISODate(localNoon);
+    }
+
+    function addDaysISO(dateStr, days) {
+      const dt = parseLocalDate(dateStr);
+      if (!dt) return '';
+      dt.setDate(dt.getDate() + days);
+      return formatISODate(dt);
+    }
+
+    function diffDays(targetDateStr, baseDateStr = getTodayISO()) {
+      const target = parseLocalDate(targetDateStr);
+      const base = parseLocalDate(baseDateStr);
+      if (!target || !base) return 0;
+      const MS_DAY = 1000 * 60 * 60 * 24;
+      return Math.round((target.getTime() - base.getTime()) / MS_DAY);
+    }
+
+    function formatPLDate(dateStr) {
+      if (!dateStr) return '—';
+      const parts = dateStr.split('-');
+      if (parts.length !== 3) return dateStr;
+      return `${parts[2]}.${parts[1]}.${parts[0]}`;
+    }
+
+    function formatCardDate(dateStr) {
+      const dt = parseLocalDate(dateStr);
+      if (!dt) return '';
+      return `${DAYS_SHORT[dt.getDay()]}, ${dt.getDate()} ${MONTHS_SHORT[dt.getMonth()]} ${dt.getFullYear()}`;
+    }
+
+    // =========================================================================
+    // 5. ODMIANA POLSKA (DNI, ZOSTAŁO, IMPREZY)
+    // =========================================================================
+    function odmianaDni(n) {
+      const abs = Math.abs(n);
+      return abs === 1 ? '1 dzień' : `${abs} dni`;
+    }
+
+    function odmianaZostalo(n) {
+      const abs = Math.abs(n);
+      if (abs === 1) return 'został 1 dzień';
+      const mod10 = abs % 10;
+      const mod100 = abs % 100;
+      if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+        return `zostały ${abs} dni`;
+      }
+      return `zostało ${abs} dni`;
+    }
+
+    function odmianaImprez(count) {
+      if (count === 1) return '1 impreza';
+      const mod10 = count % 10;
+      const mod100 = count % 100;
+      if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+        return `${count} imprezy`;
+      }
+      return `${count} imprez`;
+    }
+
+    // =========================================================================
+    // 6. OBLICZANIE 3 LICZNIKÓW TERMINÓW DLA IMPREZY MASOWEJ
+    // =========================================================================
+    function computeEventMetrics(ev) {
+      const today = getTodayISO();
+
+      // LICZNIK 1: Złożenie dokumentów (30 dni przed imprezą)
+      const submitDeadline = addDaysISO(ev.eventDate, -30);
+      const hasSubmitted = Boolean(ev.submissionDate);
+      const daysToSubmit = diffDays(submitDeadline, today);
+      const submittedDiffFromDeadline = hasSubmitted ? diffDays(submitDeadline, ev.submissionDate) : null;
+
+      // Opinie 4 służb: Policja, Straż Pożarna (psp), Sanepid, Pogotowie (zrm)
+      const opinions = ev.opinions || { policja: false, psp: false, sanepid: false, zrm: false };
+      const opinionsCount = [opinions.policja, opinions.psp, opinions.sanepid, opinions.zrm].filter(Boolean).length;
+      const allOpinionsDone = opinionsCount === 4;
+
+      // LICZNIK 2: Opinie służb (14 dni od daty złożenia dokumentów)
+      const opinionsDeadline = hasSubmitted ? addDaysISO(ev.submissionDate, 14) : null;
+      const daysToOpinions = hasSubmitted ? diffDays(opinionsDeadline, today) : null;
+
+      // LICZNIK 3: Decyzja UM (30 dni od daty złożenia dokumentów)
+      const decisionDeadline = hasSubmitted ? addDaysISO(ev.submissionDate, 30) : null;
+      const daysToDecision = hasSubmitted ? diffDays(decisionDeadline, today) : null;
+      const isDecisionDone = Boolean(ev.decisionReceived);
+
+      // Pełne zakończenie formalności (wszystkie 4 opinie + odebrana Decyzja UM)
+      const isFullyCompleted = hasSubmitted && allOpinionsDone && isDecisionDone;
+
+      // Dni do samej imprezy
+      const daysToEvent = diffDays(ev.eventDate, today);
+
+      // Flagi alarmowe (< 2 dni, czyli 1 dzień, 0 dni / dziś, lub po terminie)
+      const isSubmitCritical2d = !hasSubmitted && daysToSubmit < 2;
+      const isOpinionsCritical2d = hasSubmitted && !allOpinionsDone && daysToOpinions !== null && daysToOpinions < 2;
+      const isDecisionCritical2d = hasSubmitted && !isDecisionDone && daysToDecision !== null && daysToDecision < 2;
+      const hasAnyCriticalUnder2d = isSubmitCritical2d || isOpinionsCritical2d || isDecisionCritical2d;
+
+      // Najpilniejszy aktywny termin (w dniach)
+      const activeDeadlines = [];
+      if (!hasSubmitted) {
+        activeDeadlines.push(daysToSubmit);
+      } else {
+        if (!allOpinionsDone && daysToOpinions !== null) {
+          activeDeadlines.push(daysToOpinions);
+        }
+        if (!isDecisionDone && daysToDecision !== null) {
+          activeDeadlines.push(daysToDecision);
+        }
+      }
+
+      const mostUrgentDays = activeDeadlines.length > 0 ? Math.min(...activeDeadlines) : null;
+
+      // Kolor paska bocznego karty
+      let stripeClass = 'stripe-blue';
+      if (isFullyCompleted || (hasSubmitted && isDecisionDone)) {
+        stripeClass = 'stripe-green';
+      } else if (hasAnyCriticalUnder2d) {
+        stripeClass = 'stripe-red';
+      } else if (mostUrgentDays !== null && mostUrgentDays <= 5) {
+        stripeClass = 'stripe-orange';
+      }
+
+      return {
+        submitDeadline,
+        hasSubmitted,
+        daysToSubmit,
+        submittedDiffFromDeadline,
+        opinions,
+        opinionsCount,
+        allOpinionsDone,
+        opinionsDeadline,
+        daysToOpinions,
+        decisionDeadline,
+        daysToDecision,
+        isDecisionDone,
+        isFullyCompleted,
+        daysToEvent,
+        isSubmitCritical2d,
+        isOpinionsCritical2d,
+        isDecisionCritical2d,
+        hasAnyCriticalUnder2d,
+        mostUrgentDays,
+        stripeClass
+      };
+    }
+
+    // =========================================================================
+    // 7. ZESTAW 4 PRZYKŁADOWYCH IMPREZ TESTOWYCH (W TYM ALERTY < 2 DNI)
+    // =========================================================================
+    function createSampleEvents() {
+      const today = getTodayISO();
+
+      return [
+        {
+          id: 'sample-1',
+          name: 'Mecz Ekstraklasy: Pogoń Szczecin – Legia Warszawa',
+          venue: 'Stadion Miejski im. Floriana Krygiera',
+          eventDate: addDaysISO(today, 31), // Został dokładnie 1 dzień do złożenia (30 dni przed)!
+          submissionDate: '',
+          opinions: { policja: false, psp: false, sanepid: false, zrm: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'ALARM < 2 DNI: Został 1 dzień na złożenie dokumentów w urzędzie!'
+        },
+        {
+          id: 'sample-2',
+          name: 'Gala Sportów Walki KSW',
+          venue: 'Netto Arena, Szczecin',
+          eventDate: addDaysISO(today, 28), // Po terminie złożenia o 2 dni!
+          submissionDate: '',
+          opinions: { policja: false, psp: false, sanepid: false, zrm: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'ALARM: Przekroczony ustawowy termin 30 dni przed imprezą.'
+        },
+        {
+          id: 'sample-3',
+          name: 'Festiwal Muzyczny Szczecin Live',
+          venue: 'Łasztownia, Szczecin',
+          eventDate: addDaysISO(today, 44), // Zostało 14 dni do złożenia
+          submissionDate: '',
+          opinions: { policja: false, psp: false, sanepid: false, zrm: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Dokumentacja w przygotowaniu.'
+        },
+        {
+          id: 'sample-4',
+          name: 'Koncert Symfoniczny – Muzyka Filmowa',
+          venue: 'Netto Arena, Szczecin',
+          eventDate: addDaysISO(today, 24),
+          submissionDate: addDaysISO(today, -13), // Został 1 dzień na opinie służb (14 dni)!
+          opinions: { policja: true, psp: true, sanepid: false, zrm: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Policja i Straż Pożarna odebrane, został 1 dzień na Sanepid i Pogotowie.'
+        }
+      ];
+    }
+
+    function normalizeEventObject(item) {
+      const op = item && item.opinions ? item.opinions : {};
+      return {
+        id: item.id || ('ev-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6)),
+        name: String(item.name || '').trim(),
+        venue: item.venue ? String(item.venue).trim() : '',
+        eventDate: String(item.eventDate || ''),
+        submissionDate: item.submissionDate ? String(item.submissionDate) : '',
+        opinions: {
+          policja: Boolean(op.policja),
+          psp: Boolean(op.psp || op.strazPozarna || op.straz),
+          sanepid: Boolean(op.sanepid),
+          zrm: Boolean(op.zrm || op.pogotowie)
+        },
+        decisionReceived: Boolean(item.decisionReceived || item.decisionUMReceived),
+        decisionDate: item.decisionDate ? String(item.decisionDate) : '',
+        note: item.note ? String(item.note) : ''
+      };
+    }
+
+    function persistState(isSampleMode = null) {
+      const serialized = JSON.stringify(events);
+      safeStorage.setItem(STORAGE_KEY, serialized);
+      // Zapis lustrzany pod kompatybilnym kluczem v1 dla bezpieczeństwa danych
+      safeStorage.setItem('imprezy_masowe_v1', serialized);
+
+      if (isSampleMode !== null) {
+        safeStorage.setItem(SAMPLE_BANNER_KEY, isSampleMode ? '1' : '0');
+      }
+      updateSampleBannerUI();
+      updateHeaderNotificationDot();
+    }
+
+    function updateSampleBannerUI() {
+      const banner = document.getElementById('sampleBanner');
+      const isSample = safeStorage.getItem(SAMPLE_BANNER_KEY) === '1' && events.length > 0;
+      if (isSample) {
+        banner.classList.remove('hidden');
+        document.body.classList.add('has-sample-banner');
+      } else {
+        banner.classList.add('hidden');
+        document.body.classList.remove('has-sample-banner');
+      }
+    }
+
+    function initState() {
+      // Sprawdzamy wszystkie dotychczasowe klucze localStorage, aby nie stracić żadnej zapisanej imprezy
+      let foundRaw = null;
+      for (const key of LEGACY_STORAGE_KEYS) {
+        const val = safeStorage.getItem(key);
+        if (val !== null) {
+          foundRaw = val;
+          break;
+        }
+      }
+
+      if (foundRaw !== null) {
+        try {
+          const parsed = JSON.parse(foundRaw);
+          const list = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.events) ? parsed.events : []);
+          events = list
+            .filter(item => item && item.name && item.eventDate)
+            .map(normalizeEventObject);
+          persistState();
+        } catch (e) {
+          events = [];
+        }
+      } else {
+        // Pierwsze uruchomienie: ładujemy 4 przykładowe imprezy z alertami < 2 dni
+        events = createSampleEvents();
+        persistState(true);
+      }
+      updateSampleBannerUI();
+      updateHeaderNotificationDot();
+    }
+          if (daysToDecision !== null) {
+            activeDeadlines.push(daysToDecision);
+          }
+        }
+      }
+
+      const mostUrgentDays = activeDeadlines.length > 0 ? Math.min(...activeDeadlines) : null;
+      const isUrgentOrOverdue = !isDone && mostUrgentDays !== null && mostUrgentDays <= 5;
+
+      // Kolor paska bocznego karty
+      let stripeClass = 'stripe-blue';
+      if (isDone) {
+        stripeClass = 'stripe-green';
+      } else if (mostUrgentDays !== null && mostUrgentDays <= 2) {
+        stripeClass = 'stripe-red';
+      } else if (mostUrgentDays !== null && mostUrgentDays <= 5) {
+        stripeClass = 'stripe-orange';
+      }
+
+      return {
+        submitDeadline,
+        hasSubmitted,
+        daysToSubmit,
+        submittedDiffFromDeadline,
+        opinions,
+        opinionsCount,
+        allOpinionsDone,
+        opinionsDeadline,
+        daysToOpinions,
+        decisionDeadline,
+        daysToDecision,
+        isDone,
+        daysToEvent,
+        mostUrgentDays,
+        isUrgentOrOverdue,
+        stripeClass
+      };
+    }
+
+    // =========================================================================
+    // 7. ZESTAW PRZYKŁADOWYCH DANYCH (18 IMPREZ ROZŁOŻONYCH NA CAŁY ROK)
+    // =========================================================================
+    function createSampleEvents() {
+      const today = getTodayISO();
+      const baseYear = Number(today.slice(0, 4));
+      const nextYear = baseYear + 1;
+
+      return [
+        // Bieżące / pilne sprawy wokół dzisiejszej daty
+        {
+          id: 'sample-1',
+          name: 'Mecz Ekstraklasy: Pogoń Szczecin – Lech Poznań',
+          venue: 'Stadion Miejski im. Floriana Krygiera',
+          eventDate: addDaysISO(today, 34),
+          submissionDate: '',
+          opinions: { policja: false, psp: false, zrm: false, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Mecz podwyższonego ryzyka, komplet załączników gotowy do złożenia.'
+        },
+        {
+          id: 'sample-2',
+          name: 'Gala Sportów Walki KSW',
+          venue: 'Netto Arena, Szczecin',
+          eventDate: addDaysISO(today, 25),
+          submissionDate: '',
+          opinions: { policja: false, psp: false, zrm: false, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Pilne złożenie wniosku (przekroczony termin 30 dni).'
+        },
+        {
+          id: 'sample-3',
+          name: 'Koncert Symfoniczny – Muzyka Filmowa',
+          venue: 'Netto Arena, Szczecin',
+          eventDate: addDaysISO(today, 46),
+          submissionDate: addDaysISO(today, -6),
+          opinions: { policja: true, psp: true, zrm: false, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Policja i PSP odebrane, czekamy jeszcze na ZRM i Sanepid.'
+        },
+        {
+          id: 'sample-4',
+          name: 'Sylwester Miejski na Łasztowni',
+          venue: 'Łasztownia, Szczecin',
+          eventDate: addDaysISO(today, 42),
+          submissionDate: addDaysISO(today, -16),
+          opinions: { policja: true, psp: true, zrm: true, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Wysłano ponaglenie do PPIS o opinię sanitarną.'
+        },
+        {
+          id: 'sample-5',
+          name: 'Festiwal Światła i Dźwięku',
+          venue: 'Wały Chrobrego, Szczecin',
+          eventDate: addDaysISO(today, 19),
+          submissionDate: addDaysISO(today, -26),
+          opinions: { policja: true, psp: true, zrm: true, sanepid: true },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Komplet 4 opinii w aktach, projekt decyzji w podpisie.'
+        },
+        {
+          id: 'sample-6',
+          name: 'Turniej Piłki Ręcznej PGNiG Superliga',
+          venue: 'Netto Arena, Szczecin',
+          eventDate: addDaysISO(today, 9),
+          submissionDate: addDaysISO(today, -39),
+          opinions: { policja: true, psp: true, zrm: true, sanepid: true },
+          decisionReceived: true,
+          decisionDate: addDaysISO(today, -11),
+          note: 'Zezwolenie odebrane w urzędzie.'
+        },
+
+        // Rozkład na kolejne miesiące roku (symulacja ~130 imprez/rok)
+        {
+          id: 'sample-7',
+          name: 'Noworoczny Koncert Wiedeński',
+          venue: 'Filharmonia / Netto Arena',
+          eventDate: `${nextYear}-01-16`,
+          submissionDate: '',
+          opinions: { policja: false, psp: false, zrm: false, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Impreza artystyczno-rozrywkowa na 2800 osób.'
+        },
+        {
+          id: 'sample-8',
+          name: 'Mecz Ekstraklasy: Pogoń – Raków Częstochowa',
+          venue: 'Stadion Miejski, Szczecin',
+          eventDate: `${nextYear}-02-14`,
+          submissionDate: '',
+          opinions: { policja: false, psp: false, zrm: false, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Inauguracja rundy wiosennej.'
+        },
+        {
+          id: 'sample-9',
+          name: 'Mistrzostwa Polski w Lekkoatletyce Halowej',
+          venue: 'Netto Arena, Szczecin',
+          eventDate: `${nextYear}-02-27`,
+          submissionDate: '',
+          opinions: { policja: false, psp: false, zrm: false, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Trzydniowe zawody sportowe.'
+        },
+        {
+          id: 'sample-10',
+          name: 'Mecz Ekstraklasy: Pogoń – Legia Warszawa',
+          venue: 'Stadion Miejski, Szczecin',
+          eventDate: `${nextYear}-03-21`,
+          submissionDate: '',
+          opinions: { policja: false, psp: false, zrm: false, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Komplet widzów (21 163 os.), sektor gości.'
+        },
+        {
+          id: 'sample-11',
+          name: 'Półmaraton Szczeciński – Strefa Start/Meta',
+          venue: 'Jasne Błonia, Szczecin',
+          eventDate: `${nextYear}-04-19`,
+          submissionDate: '',
+          opinions: { policja: false, psp: false, zrm: false, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Wymagana dodatkowa organizacja ruchu drogowego.'
+        },
+        {
+          id: 'sample-12',
+          name: 'Juwenalia Szczecińskie – Koncert Główny',
+          venue: 'Łasztownia, Szczecin',
+          eventDate: `${nextYear}-05-23`,
+          submissionDate: '',
+          opinions: { policja: false, psp: false, zrm: false, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Scena plenerowa, strefa gastronomiczna.'
+        },
+        {
+          id: 'sample-13',
+          name: 'Dni Morza – Sail Szczecin (Koncerty)',
+          venue: 'Wały Chrobrego / Łasztownia',
+          eventDate: `${nextYear}-06-13`,
+          submissionDate: '',
+          opinions: { policja: false, psp: false, zrm: false, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Duża impreza plenerowa po obu stronach Odry.'
+        },
+        {
+          id: 'sample-14',
+          name: 'Festiwal Muzyki Elektronicznej Sunset',
+          venue: 'Plaża Miejska / Wyspa Grodzka',
+          eventDate: `${nextYear}-07-18`,
+          submissionDate: '',
+          opinions: { policja: false, psp: false, zrm: false, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Zabezpieczenie wodne WOPR w planie zabezpieczenia.'
+        },
+        {
+          id: 'sample-15',
+          name: 'Festiwal Ogni Sztucznych Pyromagic',
+          venue: 'Wały Chrobrego, Szczecin',
+          eventDate: `${nextYear}-08-08`,
+          submissionDate: '',
+          opinions: { policja: false, psp: false, zrm: false, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Dodatkowe uzgodnienia pirotechniczne PSP.'
+        },
+        {
+          id: 'sample-16',
+          name: 'Turniej ATP Challenger Szczecin Open',
+          venue: 'Korty przy al. Wojska Polskiego',
+          eventDate: `${nextYear}-09-19`,
+          submissionDate: '',
+          opinions: { policja: false, psp: false, zrm: false, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: 'Finałowy weekend turnieju.'
+        },
+        {
+          id: 'sample-17',
+          name: 'Mecz Ekstraklasy: Pogoń – Jagiellonia',
+          venue: 'Stadion Miejski, Szczecin',
+          eventDate: `${nextYear}-10-17`,
+          submissionDate: '',
+          opinions: { policja: false, psp: false, zrm: false, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: ''
+        },
+        {
+          id: 'sample-18',
+          name: 'Gala Kabaretowa – Jesień',
+          venue: 'Netto Arena, Szczecin',
+          eventDate: `${nextYear}-11-14`,
+          submissionDate: '',
+          opinions: { policja: false, psp: false, zrm: false, sanepid: false },
+          decisionReceived: false,
+          decisionDate: '',
+          note: '3500 miejsc siedzących na płycie i trybunach.'
+        }
+      ];
+    }
+
+    function persistState(isSampleMode = null) {
+      safeStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+      if (isSampleMode !== null) {
+        safeStorage.setItem(SAMPLE_BANNER_KEY, isSampleMode ? '1' : '0');
+      }
+      updateSampleBannerUI();
+    }
+
+    function updateSampleBannerUI() {
+      const banner = document.getElementById('sampleBanner');
+      const isSample = safeStorage.getItem(SAMPLE_BANNER_KEY) === '1' && events.length > 0;
+      if (isSample) {
+        banner.classList.remove('hidden');
+        document.body.classList.add('has-sample-banner');
+      } else {
+        banner.classList.add('hidden');
+        document.body.classList.remove('has-sample-banner');
+      }
+    }
+
+    function initState() {
+      const raw = safeStorage.getItem(STORAGE_KEY);
+      if (raw !== null) {
+        try {
+          const parsed = JSON.parse(raw);
+          events = Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+          events = [];
+        }
+      } else {
+        // Pierwsze uruchomienie: ładujemy 18 przykładowych imprez z całego roku
+        events = createSampleEvents();
+        persistState(true);
+      }
+      updateSampleBannerUI();
+    }
+
+    // =========================================================================
+    // 8. TOAST POWIADOMIENIA (Bez alert())
+    // =========================================================================
+    let toastTimeout = null;
+    function showToast(msg, isError = false) {
+      const pill = document.getElementById('toastPill');
+      const icon = document.getElementById('toastIcon');
+      const text = document.getElementById('toastMessage');
+
+      text.textContent = msg;
+      icon.textContent = isError ? '!' : '✓';
+      icon.style.color = isError ? '#FF3B30' : '#34C759';
+
+      pill.classList.add('visible');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        pill.classList.remove('visible');
+      }, 2400);
+    }
+
+    // =========================================================================
+    // 9. RENDEROWANIE NAGŁÓWKA, KPI I LISTY IMPREZ
+    // =========================================================================
+    function renderTodaySubtitle() {
+      const dt = parseLocalDate(getTodayISO());
+      const formatted = dt.toLocaleDateString('pl-PL', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+      document.getElementById('todaySubtitle').textContent =
+        formatted.charAt(0).toUpperCase() + formatted.slice(1);
+    }
+
+    function syncYearSelect() {
+      const select = document.getElementById('yearFilterSelect');
+      const currentYear = getTodayISO().slice(0, 4);
+      const nextYear = String(Number(currentYear) + 1);
+      const eventYears = events.map(e => e.eventDate.slice(0, 4));
+      const allYears = [...new Set([currentYear, nextYear, ...eventYears])].sort();
+
+      select.innerHTML = `<option value="all">Wszystkie lata (${events.length})</option>` +
+        allYears.map(y => {
+          const cnt = events.filter(e => e.eventDate.startsWith(y)).length;
+          return `<option value="${y}">${y} (${cnt})</option>`;
+        }).join('');
+
+      if (activeYear === 'all' || allYears.includes(activeYear)) {
+        select.value = activeYear;
+      } else {
+        activeYear = 'all';
+        select.value = 'all';
+      }
+    }
+
+    function renderKPIs(yearFilteredItems) {
+      const counts = {
+        all: yearFilteredItems.length,
+        urgent: yearFilteredItems.filter(x => x.metrics.hasAnyCriticalUnder2d).length,
+        to_submit: yearFilteredItems.filter(x => !x.metrics.hasSubmitted).length,
+        opinions: yearFilteredItems.filter(x => x.metrics.hasSubmitted && !x.metrics.allOpinionsDone).length,
+        decision: yearFilteredItems.filter(x => x.metrics.hasSubmitted && !x.metrics.isDecisionDone).length,
+        done: yearFilteredItems.filter(x => x.metrics.isFullyCompleted).length
+      };
+
+      document.getElementById('totalEventsBadge').textContent = odmianaImprez(events.length);
+
+      const pills = [
+        { id: 'all', label: 'Wszystkie', count: counts.all },
+        { id: 'urgent', label: 'Alarm < 2 dni', count: counts.urgent, isUrgentPill: true },
+        { id: 'to_submit', label: 'Do złożenia', count: counts.to_submit },
+        { id: 'opinions', label: 'Czeka na opinie', count: counts.opinions },
+        { id: 'decision', label: 'Czeka na Decyzję UM', count: counts.decision },
+        { id: 'done', label: 'Zakończone', count: counts.done }
+      ];
+
+      document.getElementById('kpiStrip').innerHTML = pills.map(p => {
+        const isActive = activeFilter === p.id;
+        const urgentClass = p.isUrgentPill && p.count > 0 ? 'urgent-has-items' : '';
+        return `
+          <button
+            type="button"
+            onclick="setFilter('${p.id}')"
+            class="kpi-pill pressable ${isActive ? 'active' : ''} ${urgentClass}"
+          >
+            <span>${p.label}</span>
+            <span class="kpi-count">${p.count}</span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function renderApp() {
+      syncYearSelect();
+
+      // 1. Wyliczenie metryk dla każdej imprezy
+      const allEnriched = events.map(ev => ({
+        event: ev,
+        metrics: computeEventMetrics(ev)
+      }));
+
+      // 2. Zakres roku
+      const yearScoped = activeYear === 'all'
+        ? allEnriched
+        : allEnriched.filter(x => x.event.eventDate.startsWith(activeYear));
+
+      // 3. Render KPI dla wybranego roku
+      renderKPIs(yearScoped);
+
+      // 4. Filtrowanie po KPI + wyszukiwarce
+      const q = searchQuery.trim().toLowerCase();
+      const filtered = yearScoped.filter(({ event, metrics }) => {
+        if (activeFilter === 'urgent' && !metrics.hasAnyCriticalUnder2d) return false;
+        if (activeFilter === 'to_submit' && metrics.hasSubmitted) return false;
+        if (activeFilter === 'opinions' && (!metrics.hasSubmitted || metrics.allOpinionsDone)) return false;
+        if (activeFilter === 'decision' && (!metrics.hasSubmitted || metrics.isDecisionDone)) return false;
+        if (activeFilter === 'done' && !metrics.isFullyCompleted) return false;
+
+        if (q) {
+          const searchable = `${event.name} ${event.venue || ''} ${event.note || ''} ${formatPLDate(event.eventDate)}`.toLowerCase();
+          if (!searchable.includes(q)) return false;
+        }
+        return true;
+      });
+
+      const container = document.getElementById('eventsContainer');
+
+      if (filtered.length === 0) {
+        const hasFilters = activeFilter !== 'all' || searchQuery || activeYear !== 'all';
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon-circle">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+                <rect x="3" y="4" width="18" height="18" rx="3"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+            </div>
+            <h3 class="empty-title">Brak imprez do wyświetlenia</h3>
+            <p class="empty-desc">
+              ${hasFilters
+                ? 'Zmień aktywny filtr wyszukiwania lub wyczyść wpisaną frazę.'
+                : 'Dodaj pierwszą imprezę przyciskiem + lub załaduj 4 przykładowe imprezy testowe, aby przetestować migające alerty < 2 dni.'}
+            </p>
+            ${hasFilters ? `
+              <button type="button" onclick="resetAllFilters()" class="chip-btn blue pressable">
+                Pokaż wszystkie imprezy
+              </button>
+            ` : `
+              <div style="display: flex; flex-direction: column; gap: 10px; max-width: 300px; margin: 0 auto;">
+                <button type="button" onclick="openEventSheet()" class="full-primary-btn pressable">
+                  + Dodaj pierwszą imprezę
+                </button>
+                <button type="button" onclick="loadSampleEvents(false)" class="chip-btn blue pressable" style="min-height: 44px;">
+                  Załaduj 4 przykładowe imprezy testowe
+                </button>
+              </div>
+            `}
+          </div>
+        `;
+        return;
+      }
+
+      // 5. PODZIAŁ NA DWIE WYRAŹNE SEKCJE:
+      //    GÓRA: "DO ZŁOŻENIA" (posortowana ściśle według najmniejszej liczby dni do złożenia)
+      //    DÓŁ:  "ZŁOŻONE" (aktywne z najpilniejszym terminem na górze, w pełni zakończone niżej)
+      const toSubmitList = filtered
+        .filter(x => !x.metrics.hasSubmitted)
+        .sort((a, b) => {
+          if (a.metrics.daysToSubmit !== b.metrics.daysToSubmit) {
+            return a.metrics.daysToSubmit - b.metrics.daysToSubmit;
+          }
+          return a.event.eventDate.localeCompare(b.event.eventDate);
+        });
+
+      const submittedAll = filtered.filter(x => x.metrics.hasSubmitted);
+
+      const submittedActive = submittedAll
+        .filter(x => !x.metrics.isFullyCompleted)
+        .sort((a, b) => {
+          const aUrg = a.metrics.mostUrgentDays !== null ? a.metrics.mostUrgentDays : 9999;
+          const bUrg = b.metrics.mostUrgentDays !== null ? b.metrics.mostUrgentDays : 9999;
+          if (aUrg !== bUrg) return aUrg - bUrg;
+          return a.event.eventDate.localeCompare(b.event.eventDate);
+        });
+
+      const submittedCompleted = submittedAll
+        .filter(x => x.metrics.isFullyCompleted)
+        .sort((a, b) => a.event.eventDate.localeCompare(b.event.eventDate));
+
+      const criticalToSubmitCount = toSubmitList.filter(x => x.metrics.isSubmitCritical2d).length;
+
+      let html = '';
+
+      // --- SEKCJA 1 (GÓRA): DO ZŁOŻENIA ---
+      if (activeFilter === 'all' || activeFilter === 'to_submit' || activeFilter === 'urgent') {
+        if (toSubmitList.length > 0 || activeFilter === 'to_submit' || activeFilter === 'all') {
+          html += `
+            <section class="group-section">
+              <div class="section-banner-header section-banner-submit ${criticalToSubmitCount > 0 ? 'has-critical' : ''}">
+                <div>
+                  <h2 class="section-banner-title">
+                    <span>DO ZŁOŻENIA</span>
+                    ${criticalToSubmitCount > 0 ? `<span class="alarm-blink-pill">⚠️ ${criticalToSubmitCount} PILNE &lt; 2 DNI</span>` : ''}
+                  </h2>
+                  <p class="section-banner-sub">Posortowane od najmniejszej liczby dni do złożenia wniosku (30 dni przed imprezą)</p>
+                </div>
+                <span class="section-count-pill">${toSubmitList.length}</span>
+              </div>
+
+              ${toSubmitList.length > 0 ? `
+                <div class="cards-stack">
+                  ${toSubmitList.map(x => renderEventCard(x.event, x.metrics)).join('')}
+                </div>
+              ` : `
+                <div class="grouped-box" style="padding: 16px; text-align: center; font-size: 14px; color: var(--ios-green-text); font-weight: 600;">
+                  ✓ Brak imprez oczekujących na złożenie dokumentów
+                </div>
+              `}
+            </section>
+          `;
+        }
+      }
+
+      // --- SEPARATOR MIĘDZY SEKCJAMI ---
+      if (toSubmitList.length > 0 && submittedAll.length > 0) {
+        html += `<div class="section-divider"></div>`;
+      }
+
+      // --- SEKCJA 2 (DÓŁ): ZŁOŻONE ---
+      if (submittedAll.length > 0 || (activeFilter !== 'to_submit' && activeFilter !== 'all' && activeFilter !== 'urgent')) {
+        html += `
+          <section class="group-section">
+            <div class="section-banner-header section-banner-submitted">
+              <div>
+                <h2 class="section-banner-title">
+                  <span>ZŁOŻONE</span>
+                </h2>
+                <p class="section-banner-sub">Opinie służb (14 dni) oraz Decyzja UM (30 dni od daty złożenia)</p>
+              </div>
+              <span class="section-count-pill">${submittedAll.length}</span>
+            </div>
+
+            ${submittedActive.length > 0 ? `
+              <div class="sub-group-label">
+                <span>W toku — oczekuje na opinie lub Decyzję UM</span>
+                <span>${submittedActive.length}</span>
+              </div>
+              <div class="cards-stack">
+                ${submittedActive.map(x => renderEventCard(x.event, x.metrics)).join('')}
+              </div>
+            ` : ''}
+
+            ${submittedCompleted.length > 0 ? `
+              <div class="sub-group-label" style="margin-top: ${submittedActive.length > 0 ? '20px' : '4px'};">
+                <span>Zakończone (komplet opinii + Decyzja UM)</span>
+                <span>${submittedCompleted.length}</span>
+              </div>
+              <div class="cards-stack">
+                ${submittedCompleted.map(x => renderEventCard(x.event, x.metrics)).join('')}
+              </div>
+            ` : ''}
+
+            ${submittedAll.length === 0 ? `
+              <div class="grouped-box" style="padding: 16px; text-align: center; font-size: 14px; color: var(--text-tertiary);">
+                Brak złożonych imprez spełniających kryteria filtra
+              </div>
+            ` : ''}
+          </section>
+        `;
+      }
+
+      container.innerHTML = html;
+    }
+
+    /**
+     * Formatuje czytelny komunikat alarmowy dla terminów krótszych niż 2 dni (< 2 dni).
+     */
+    function formatCriticalUnder2DaysText(daysLeft, deadlineLabel) {
+      if (daysLeft === 1) {
+        return `⚠️ ZOSTAŁ 1 DZIEŃ! (${deadlineLabel})`;
+      }
+      if (daysLeft === 0) {
+        return `⚠️ TERMIN DZIŚ! (${deadlineLabel})`;
+      }
+      return `⚠️ PO TERMINIE O ${odmianaDni(daysLeft).toUpperCase()}! (${deadlineLabel})`;
+    }
+
+    /**
+     * Renderuje kartę pojedynczej imprezy masowej z 3 licznikami i 4 przyciskami opinii.
+     */
+    function renderEventCard(ev, m) {
+      let daysAwayText = '';
+      if (m.daysToEvent > 0) daysAwayText = `za ${odmianaDni(m.daysToEvent)}`;
+      else if (m.daysToEvent === 0) daysAwayText = 'DZIŚ';
+      else daysAwayText = `${odmianaDni(m.daysToEvent)} temu`;
+
+      // Klasa migania całej karty na czerwono dla imprez DO ZŁOŻENIA z terminem < 2 dni
+      const cardBlinkClass = m.isSubmitCritical2d ? 'card-blink-red' : '';
+
+      // --- LICZNIK 1: Złożenie dokumentów (30 dni przed imprezą) ---
+      let counter1HTML = '';
+      if (!m.hasSubmitted) {
+        let boxClass = 'counter-blue';
+        let statusLine = `${odmianaZostalo(m.daysToSubmit)} do złożenia dokumentów`;
+
+        if (m.isSubmitCritical2d) {
+          boxClass = 'counter-critical-blink';
+          statusLine = formatCriticalUnder2DaysText(m.daysToSubmit, 'złożenie dokumentów');
+        } else if (m.daysToSubmit <= 5) {
+          boxClass = 'counter-orange';
+        }
+
+        counter1HTML = `
+          <div class="counter-box ${boxClass}">
+            <div class="counter-header-line">1. Złożenie dokumentów (do ${formatPLDate(m.submitDeadline)})</div>
+            <div class="counter-main-row">
+              <span class="counter-value">${statusLine}</span>
+              <button type="button" onclick="openQuickSubmitSheet('${ev.id}')" class="quick-action-btn pressable" style="${m.isSubmitCritical2d ? 'background-color: #D70015; box-shadow: 0 2px 8px rgba(215, 0, 21, 0.35);' : ''}">
+                + Wpisz datę złożenia
+              </button>
+            </div>
+          </div>
+        `;
+      } else {
+        const isOnTime = m.submittedDiffFromDeadline >= 0;
+        const badgeHTML = isOnTime
+          ? `<span class="status-badge badge-green">✓ Złożono w terminie</span>`
+          : `<span class="status-badge badge-red">Złożono ${odmianaDni(m.submittedDiffFromDeadline)} po terminie</span>`;
+
+        counter1HTML = `
+          <div class="counter-box counter-neutral">
+            <div class="counter-main-row">
+              <div>
+                <div class="counter-header-line" style="margin-bottom: 1px;">1. Złożenie dokumentów</div>
+                <span style="font-size: 13px; font-weight: 700;">Data złożenia: ${formatPLDate(ev.submissionDate)}</span>
+              </div>
+              ${badgeHTML}
+            </div>
+          </div>
+        `;
+      }
+
+      // --- LICZNIK 2: Opinie służb (14 dni od daty złożenia) ---
+      let counter2HTML = '';
+      if (m.hasSubmitted) {
+        let opinionStatusBanner = '';
+        if (m.allOpinionsDone) {
+          opinionStatusBanner = `<span class="status-badge badge-green">Komplet opinii ✓</span>`;
+        } else {
+          let opClass = 'counter-blue';
+          let opMsg = `Opinie służb (14 dni): ${odmianaZostalo(m.daysToOpinions)} (do ${formatPLDate(m.opinionsDeadline)})`;
+          if (m.isOpinionsCritical2d) {
+            opClass = 'counter-critical-blink';
+            opMsg = `${formatCriticalUnder2DaysText(m.daysToOpinions, 'opinie służb')} — do ${formatPLDate(m.opinionsDeadline)}`;
+          } else if (m.daysToOpinions <= 5) {
+            opClass = 'counter-orange';
+          }
+          opinionStatusBanner = `
+            <div class="counter-box ${opClass}" style="padding: 8px 10px; width: 100%;">
+              <span style="font-size: 13px; font-weight: 800;">${opMsg}</span>
+            </div>
+          `;
+        }
+
+        // Dokładna kolejność i nazwy: 1. Policja, 2. Straż Pożarna, 3. Sanepid, 4. Pogotowie
+        const services = [
+          { key: 'policja', label: 'Policja' },
+          { key: 'psp', label: 'Straż Pożarna' },
+          { key: 'sanepid', label: 'Sanepid' },
+          { key: 'zrm', label: 'Pogotowie' }
+        ];
+
+        counter2HTML = `
+          <div class="opinions-wrapper">
+            <div class="opinions-top-row">
+              <span style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-secondary);">
+                2. Opinie służb
+              </span>
+              <span class="opinions-fraction">${m.opinionsCount}/4</span>
+            </div>
+
+            ${opinionStatusBanner}
+
+            <div class="services-grid">
+              ${services.map(srv => {
+                const isReceived = Boolean(m.opinions[srv.key]);
+                return `
+                  <button
+                    type="button"
+                    onclick="toggleOpinion('${ev.id}', '${srv.key}')"
+                    class="service-btn pressable ${isReceived ? 'received' : 'waiting'}"
+                  >
+                    <span>${isReceived ? '✓' : '○'}</span>
+                    <span>${srv.label}</span>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      // --- LICZNIK 3: Decyzja UM (30 dni od daty złożenia) ---
+      let counter3HTML = '';
+      if (m.hasSubmitted) {
+        if (m.isDecisionDone) {
+          counter3HTML = `
+            <div class="counter-box counter-green">
+              <div class="counter-main-row">
+                <div>
+                  <div class="counter-header-line" style="margin-bottom: 1px;">3. Decyzja UM</div>
+                  <span class="counter-value">Decyzja UM: Odebrana ✓ ${ev.decisionDate ? `(${formatPLDate(ev.decisionDate)})` : ''}</span>
+                </div>
+                <button type="button" onclick="undoDecision('${ev.id}')" class="undo-link-btn">
+                  Cofnij
+                </button>
+              </div>
+            </div>
+          `;
+        } else {
+          let decClass = 'counter-blue';
+          let decMsg = `Decyzja UM: Oczekuje — ${odmianaZostalo(m.daysToDecision)} (do ${formatPLDate(m.decisionDeadline)})`;
+
+          if (m.isDecisionCritical2d) {
+            decClass = 'counter-critical-blink';
+            decMsg = `${formatCriticalUnder2DaysText(m.daysToDecision, 'Decyzja UM')} — do ${formatPLDate(m.decisionDeadline)}`;
+          } else if (m.daysToDecision <= 5) {
+            decClass = 'counter-orange';
+          }
+
+          counter3HTML = `
+            <div class="counter-box ${decClass}">
+              <div class="counter-header-line">3. Decyzja UM (30 dni od złożenia)</div>
+              <div class="counter-main-row">
+                <span class="counter-value" style="flex: 1; min-width: 170px;">${decMsg}</span>
+                <button type="button" onclick="openQuickDecisionSheet('${ev.id}')" class="decision-confirm-btn pressable">
+                  Odbierz Decyzję UM
+                </button>
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      // Plakietka alarmowa na górze karty, jeśli jakikolwiek termin < 2 dni
+      const topAlarmBadge = m.hasAnyCriticalUnder2d
+        ? `<span class="alarm-blink-pill">⚠️ PILNE &lt; 2 DNI</span>`
+        : '';
+
+      return `
+        <article class="event-card ${cardBlinkClass}">
+          <div class="urgency-stripe ${m.stripeClass}"></div>
+          <div class="card-body">
+            <div class="card-top">
+              <div style="min-width: 0; flex: 1;">
+                <div class="card-meta-row">
+                  <span class="date-chip">${formatCardDate(ev.eventDate)}</span>
+                  <span class="days-away-label">(${daysAwayText})</span>
+                  ${topAlarmBadge}
+                </div>
+                <h3 class="event-title">${escapeHTML(ev.name)}</h3>
+                ${ev.venue ? `
+                  <p class="event-venue">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                      <circle cx="12" cy="10" r="3"></circle>
+                    </svg>
+                    <span>${escapeHTML(ev.venue)}</span>
+                  </p>
+                ` : ''}
+              </div>
+
+              <div class="card-top-actions">
+                ${!m.isFullyCompleted ? `
+                  <button type="button" onclick="exportSingleEventICS('${ev.id}')" title="Dodaj alarmy 2 dni przed do Kalendarza iPhone" class="ics-mini-btn pressable">
+                    <span>📅</span>
+                    <span>.ics (-2d)</span>
+                  </button>
+                ` : ''}
+
+                <button type="button" onclick="openEventSheet('${ev.id}')" aria-label="Edytuj imprezę" class="edit-card-btn pressable">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            ${counter1HTML}
+            ${counter2HTML}
+            ${counter3HTML}
+
+            ${ev.note ? `<p class="card-note">„${escapeHTML(ev.note)}”</p>` : ''}
+          </div>
+        </article>
+      `;
+    }
+
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // =========================================================================
+    // 10. AKCJE INTERAKTYWNE NA KARCIE IMPREZY
+    // =========================================================================
+    function toggleOpinion(eventId, serviceKey) {
+      const ev = events.find(e => e.id === eventId);
+      if (!ev) return;
+      if (!ev.opinions) ev.opinions = { policja: false, psp: false, sanepid: false, zrm: false };
+      ev.opinions[serviceKey] = !ev.opinions[serviceKey];
+      persistState();
+      renderApp();
+
+      const names = {
+        policja: 'Policja',
+        psp: 'Straż Pożarna',
+        sanepid: 'Sanepid',
+        zrm: 'Pogotowie'
+      };
+      showToast(`${names[serviceKey]}: ${ev.opinions[serviceKey] ? 'opinia otrzymana ✓' : 'oczekuje'}`);
+    }
+
+    // Szybkie wpisanie daty złożenia dokumentów
+    function openQuickSubmitSheet(eventId) {
+      const ev = events.find(e => e.id === eventId);
+      if (!ev) return;
+      quickSubmitEventId = eventId;
+
+      const deadline30 = addDaysISO(ev.eventDate, -30);
+      document.getElementById('quickSubmitTitle').textContent = ev.name;
+      document.getElementById('quickSubmitInfo').textContent =
+        `Data imprezy: ${formatPLDate(ev.eventDate)} • Termin złożenia (30 dni): ${formatPLDate(deadline30)}`;
+      document.getElementById('quickSubmitDateInput').value = getTodayISO();
+
+      const sheet = document.getElementById('quickSubmitSheet');
+      sheet.classList.remove('closed');
+      sheet.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeQuickSubmitSheet() {
+      const sheet = document.getElementById('quickSubmitSheet');
+      sheet.classList.add('closed');
+      sheet.setAttribute('aria-hidden', 'true');
+      quickSubmitEventId = null;
+    }
+
+    function confirmQuickSubmit() {
+      const dateVal = document.getElementById('quickSubmitDateInput').value;
+      if (!dateVal || !quickSubmitEventId) return;
+
+      const ev = events.find(e => e.id === quickSubmitEventId);
+      if (ev) {
+        ev.submissionDate = dateVal;
+        persistState();
+        renderApp();
+        showToast(`Wpisano datę złożenia: ${formatPLDate(dateVal)}`);
+      }
+      closeQuickSubmitSheet();
+    }
+
+    // Szybkie oznaczenie odbioru decyzji (z wyborem daty odbioru)
+    function openQuickDecisionSheet(eventId) {
+      const ev = events.find(e => e.id === eventId);
+      if (!ev) return;
+      quickDecisionEventId = eventId;
+
+      const deadline30 = addDaysISO(ev.submissionDate, 30);
+      document.getElementById('quickDecisionTitle').textContent = ev.name;
+      document.getElementById('quickDecisionInfo').textContent =
+        `Data złożenia: ${formatPLDate(ev.submissionDate)} • Termin Decyzji UM (30 dni): ${formatPLDate(deadline30)}`;
+      document.getElementById('quickDecisionDateInput').value = getTodayISO();
+
+      const sheet = document.getElementById('quickDecisionSheet');
+      sheet.classList.remove('closed');
+      sheet.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeQuickDecisionSheet() {
+      const sheet = document.getElementById('quickDecisionSheet');
+      sheet.classList.add('closed');
+      sheet.setAttribute('aria-hidden', 'true');
+      quickDecisionEventId = null;
+    }
+
+    function confirmQuickDecision() {
+      const dateVal = document.getElementById('quickDecisionDateInput').value;
+      if (!quickDecisionEventId) return;
+
+      const ev = events.find(e => e.id === quickDecisionEventId);
+      if (ev) {
+        ev.decisionReceived = true;
+        ev.decisionDate = dateVal || getTodayISO();
+        persistState();
+        renderApp();
+        showToast('Decyzja UM: Odebrana ✓');
+      }
+      closeQuickDecisionSheet();
+    }
+
+    function undoDecision(eventId) {
+      const ev = events.find(e => e.id === eventId);
+      if (!ev) return;
+      ev.decisionReceived = false;
+      ev.decisionDate = '';
+      persistState();
+      renderApp();
+      showToast('Cofnięto odbiór Decyzji UM');
+    }
+
+    // =========================================================================
+    // 11. FILTRY, WYSZUKIWARKA I ROK
+    // =========================================================================
+    function setFilter(filterId) {
+      activeFilter = filterId;
+      renderApp();
+    }
+
+    function setYearFilter(yearVal) {
+      activeYear = yearVal;
+      renderApp();
+    }
+
+    function handleSearch(val) {
+      searchQuery = val;
+      document.getElementById('searchClearBtn').classList.toggle('hidden', val.length === 0);
+      renderApp();
+    }
+
+    function clearSearch() {
+      const input = document.getElementById('searchInput');
+      input.value = '';
+      handleSearch('');
+    }
+
+    function resetAllFilters() {
+      activeFilter = 'all';
+      activeYear = 'all';
+      clearSearch();
+      renderApp();
+    }
+
+    function toggleMonthSection(monthKey) {
+      collapsedMonths[monthKey] = !collapsedMonths[monthKey];
+      renderApp();
+    }
+
+    function toggleCollapseAll() {
+      const keys = [...new Set(events.map(e => e.eventDate.slice(0, 7)))];
+      const anyExpanded = keys.some(k => !collapsedMonths[k]);
+      keys.forEach(k => {
+        collapsedMonths[k] = anyExpanded;
+      });
+      renderApp();
+    }
+
+    // =========================================================================
+    // 12. MODAL DODAWANIA / EDYCJI IMPREZY
+    // =========================================================================
+    function openEventSheet(eventId = null) {
+      const sheet = document.getElementById('eventSheet');
+      const errorBanner = document.getElementById('formErrorBanner');
+      errorBanner.classList.add('hidden');
+      hideDeleteConfirmBox();
+
+      if (eventId) {
+        const ev = events.find(e => e.id === eventId);
+        if (!ev) return;
+
+        document.getElementById('eventSheetTitle').textContent = 'Edytuj imprezę';
+        document.getElementById('editEventId').value = ev.id;
+        document.getElementById('inputName').value = ev.name;
+        document.getElementById('inputVenue').value = ev.venue || '';
+        document.getElementById('inputEventDate').value = ev.eventDate;
+        document.getElementById('inputSubmissionDate').value = ev.submissionDate || '';
+
+        const op = ev.opinions || { policja: false, psp: false, sanepid: false, zrm: false };
+        document.getElementById('chkPolicja').checked = Boolean(op.policja);
+        document.getElementById('chkPsp').checked = Boolean(op.psp);
+        document.getElementById('chkSanepid').checked = Boolean(op.sanepid);
+        document.getElementById('chkZrm').checked = Boolean(op.zrm);
+
+        document.getElementById('chkDecision').checked = Boolean(ev.decisionReceived);
+        document.getElementById('inputDecisionDate').value = ev.decisionDate || '';
+        document.getElementById('inputNote').value = ev.note || '';
+
+        document.getElementById('deleteEventWrapper').classList.remove('hidden');
+      } else {
+        document.getElementById('eventSheetTitle').textContent = 'Nowa impreza';
+        document.getElementById('editEventId').value = '';
+        document.getElementById('inputName').value = '';
+        document.getElementById('inputVenue').value = '';
+        document.getElementById('inputEventDate').value = addDaysISO(getTodayISO(), 35);
+        document.getElementById('inputSubmissionDate').value = '';
+
+        document.getElementById('chkPolicja').checked = false;
+        document.getElementById('chkPsp').checked = false;
+        document.getElementById('chkSanepid').checked = false;
+        document.getElementById('chkZrm').checked = false;
+
+        document.getElementById('chkDecision').checked = false;
+        document.getElementById('inputDecisionDate').value = '';
+        document.getElementById('inputNote').value = '';
+
+        document.getElementById('deleteEventWrapper').classList.add('hidden');
+      }
+
+      toggleFormDecisionDate();
+      updateFormHints();
+
+      sheet.classList.remove('closed');
+      sheet.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeEventSheet() {
+      const sheet = document.getElementById('eventSheet');
+      sheet.classList.add('closed');
+      sheet.setAttribute('aria-hidden', 'true');
+    }
+
+    function fillTodayDate(inputId) {
+      document.getElementById(inputId).value = getTodayISO();
+      updateFormHints();
+    }
+
+    function clearDateField(inputId) {
+      document.getElementById(inputId).value = '';
+      updateFormHints();
+    }
+
+    function toggleFormDecisionDate() {
+      const checked = document.getElementById('chkDecision').checked;
+      const row = document.getElementById('formDecisionDateRow');
+      if (checked) {
+        row.classList.remove('hidden');
+        if (!document.getElementById('inputDecisionDate').value) {
+          document.getElementById('inputDecisionDate').value = getTodayISO();
+        }
+      } else {
+        row.classList.add('hidden');
+      }
+    }
+
+    function updateFormHints() {
+      const eventDate = document.getElementById('inputEventDate').value;
+      const submissionDate = document.getElementById('inputSubmissionDate').value;
+
+      const hintEvent = document.getElementById('hintEventDeadline');
+      if (eventDate) {
+        const deadline30 = addDaysISO(eventDate, -30);
+        const daysLeft = diffDays(deadline30, getTodayISO());
+        const relText = daysLeft >= 0 ? odmianaZostalo(daysLeft) : `${odmianaDni(daysLeft)} po terminie`;
+        hintEvent.innerHTML = `Termin złożenia dokumentów (30 dni przed): <strong>${formatPLDate(deadline30)}</strong> (${relText})`;
+      } else {
+        hintEvent.textContent = 'Wybierz datę imprezy, aby obliczyć termin złożenia dokumentów.';
+      }
+
+      const hintSub = document.getElementById('hintSubmissionDeadlines');
+      if (submissionDate) {
+        const op14 = addDaysISO(submissionDate, 14);
+        const dec30 = addDaysISO(submissionDate, 30);
+        hintSub.innerHTML = `Opinie służb (14 dni): <strong>${formatPLDate(op14)}</strong> • Decyzja UM (30 dni): <strong>${formatPLDate(dec30)}</strong>`;
+      } else {
+        hintSub.textContent = 'Wpisanie daty złożenia uruchomi odliczanie 14 dni na opinie i 30 dni na Decyzję UM.';
+      }
+    }
+
+    function saveEventForm() {
+      const errorBanner = document.getElementById('formErrorBanner');
+      const name = document.getElementById('inputName').value.trim();
+      const venue = document.getElementById('inputVenue').value.trim();
+      const eventDate = document.getElementById('inputEventDate').value;
+      const submissionDate = document.getElementById('inputSubmissionDate').value;
+      const decisionReceived = document.getElementById('chkDecision').checked;
+      const decisionDate = decisionReceived ? document.getElementById('inputDecisionDate').value : '';
+      const note = document.getElementById('inputNote').value.trim();
+
+      if (!name) {
+        errorBanner.textContent = 'Wpisz nazwę imprezy masowej.';
+        errorBanner.classList.remove('hidden');
+        return;
+      }
+      if (!eventDate) {
+        errorBanner.textContent = 'Wybierz datę imprezy.';
+        errorBanner.classList.remove('hidden');
+        return;
+      }
+
+      const opinions = {
+        policja: document.getElementById('chkPolicja').checked,
+        psp: document.getElementById('chkPsp').checked,
+        sanepid: document.getElementById('chkSanepid').checked,
+        zrm: document.getElementById('chkZrm').checked
+      };
+
+      const editId = document.getElementById('editEventId').value;
+
+      if (editId) {
+        const index = events.findIndex(e => e.id === editId);
+        if (index !== -1) {
+          events[index] = {
+            ...events[index],
+            name,
+            venue,
+            eventDate,
+            submissionDate,
+            opinions,
+            decisionReceived,
+            decisionDate,
+            note
+          };
+        }
+        persistState();
+        showToast('Zaktualizowano imprezę');
+      } else {
+        events.push({
+          id: 'ev-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+          name,
+          venue,
+          eventDate,
+          submissionDate,
+          opinions,
+          decisionReceived,
+          decisionDate,
+          note
+        });
+        persistState(false);
+        showToast('Dodano imprezę do terminarza');
+      }
+
+      closeEventSheet();
+      renderApp();
+    }
+
+    function showDeleteConfirmBox() {
+      document.getElementById('deleteInitBtn').classList.add('hidden');
+      document.getElementById('deleteConfirmBox').classList.remove('hidden');
+    }
+
+    function hideDeleteConfirmBox() {
+      document.getElementById('deleteInitBtn').classList.remove('hidden');
+      document.getElementById('deleteConfirmBox').classList.add('hidden');
+    }
+
+    function executeDeleteEvent() {
+      const editId = document.getElementById('editEventId').value;
+      if (!editId) return;
+      events = events.filter(e => e.id !== editId);
+      persistState();
+      closeEventSheet();
+      renderApp();
+      showToast('Usunięto imprezę');
+    }
+
+    // =========================================================================
+    // 13. ARKUSZ INSTALACJI NA IPHONE + KOPIOWANIE LINKU (execCommand)
+    // =========================================================================
+    function openInstallSheet() {
+      const badge = document.getElementById('installProtocolBadge');
+      const warnBox = document.getElementById('installFileWarning');
+      const proto = window.location.protocol;
+
+      if (proto === 'https:') {
+        badge.textContent = '✓ Adres HTTPS aktywny — gotowe do instalacji w Safari';
+        badge.style.color = 'var(--ios-green-text)';
+        warnBox.classList.add('hidden');
+      } else if (proto === 'http:') {
+        badge.textContent = '● Serwer lokalny HTTP aktywny';
+        badge.style.color = 'var(--ios-blue)';
+        warnBox.classList.add('hidden');
+      } else {
+        badge.textContent = '! Otwarto lokalnie — wymagany link HTTPS na iPhone';
+        badge.style.color = 'var(--ios-orange-text)';
+        warnBox.classList.remove('hidden');
+      }
+
+      document.getElementById('copyLinkBtnText').textContent = 'Kopiuj link strony';
+
+      const sheet = document.getElementById('installSheet');
+      sheet.classList.remove('closed');
+      sheet.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeInstallSheet() {
+      const sheet = document.getElementById('installSheet');
+      sheet.classList.add('closed');
+      sheet.setAttribute('aria-hidden', 'true');
+    }
+
+    /**
+     * Kopiuje adres bieżącej strony przy użyciu document.execCommand('copy')
+     * dla pełnej kompatybilności z iOS Safari i środowiskami iframe.
+     */
+    function copyPageLink() {
+      const textToCopy = window.location.href;
+      const tempArea = document.createElement('textarea');
+      tempArea.value = textToCopy;
+      tempArea.setAttribute('readonly', '');
+      tempArea.style.position = 'fixed';
+      tempArea.style.top = '0';
+      tempArea.style.left = '0';
+      tempArea.style.opacity = '0';
+      document.body.appendChild(tempArea);
+
+      tempArea.focus();
+      tempArea.select();
+      tempArea.setSelectionRange(0, 99999);
+
+      let copied = false;
+      try {
+        copied = document.execCommand('copy');
+      } catch (err) {
+        copied = false;
+      }
+      document.body.removeChild(tempArea);
+
+      if (copied) {
+        document.getElementById('copyLinkBtnText').textContent = '✓ Skopiowano link strony';
+        showToast('Skopiowano link do schowka');
+      } else {
+        showToast('Zaznacz i skopiuj adres z paska Safari', true);
+      }
+    }
+
+    // =========================================================================
+    // 14. MENU KOPIA / EKSPORT: CSV, JSON, DANE PRZYKŁADOWE I CZYSZCZENIE
+    // =========================================================================
+    function openToolsSheet() {
+      const doneCount = events.filter(e => e.decisionReceived).length;
+      document.getElementById('toolStatTotal').textContent = events.length;
+      document.getElementById('toolStatActive').textContent = events.length - doneCount;
+      document.getElementById('toolStatDone').textContent = doneCount;
+      document.getElementById('toolsClearConfirm').classList.add('hidden');
+
+      const sheet = document.getElementById('toolsSheet');
+      sheet.classList.remove('closed');
+      sheet.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeToolsSheet() {
+      const sheet = document.getElementById('toolsSheet');
+      sheet.classList.add('closed');
+      sheet.setAttribute('aria-hidden', 'true');
+    }
+
+    function downloadFile(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function exportCSV() {
+      const headers = [
+        'Nazwa imprezy',
+        'Miejsce / Obiekt',
+        'Data imprezy',
+        'Termin zlozenia (30 dni przed)',
+        'Data zlozenia dokumentow',
+        'Termin opinii sluzb (14 dni)',
+        'Policja',
+        'PSP',
+        'ZRM',
+        'Sanepid',
+        'Termin decyzji (30 dni)',
+        'Decyzja wydana',
+        'Data odbioru decyzji',
+        'Notatki'
+      ];
+
+      const sorted = [...events].sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+
+      const rows = sorted.map(ev => {
+        const m = computeEventMetrics(ev);
+        const cols = [
+          ev.name,
+          ev.venue || '',
+          formatPLDate(ev.eventDate),
+          formatPLDate(m.submitDeadline),
+          ev.submissionDate ? formatPLDate(ev.submissionDate) : 'Nie zlozono',
+          m.opinionsDeadline ? formatPLDate(m.opinionsDeadline) : '-',
+          m.opinions.policja ? 'TAK' : 'NIE',
+          m.opinions.psp ? 'TAK' : 'NIE',
+          m.opinions.zrm ? 'TAK' : 'NIE',
+          m.opinions.sanepid ? 'TAK' : 'NIE',
+          m.decisionDeadline ? formatPLDate(m.decisionDeadline) : '-',
+          m.isDone ? 'TAK' : 'NIE',
+          ev.decisionDate ? formatPLDate(ev.decisionDate) : '-',
+          ev.note || ''
+        ];
+        return cols.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';');
+      });
+
+      const csvString = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      downloadFile(blob, `imprezy_masowe_${getTodayISO()}.csv`);
+      showToast('Wyeksportowano CSV');
+    }
+
+    function exportJSON() {
+      const backup = {
+        app: 'Imprezy Masowe PWA',
+        exportedAt: new Date().toISOString(),
+        events
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      downloadFile(blob, `imprezy_masowe_kopia_${getTodayISO()}.json`);
+      showToast('Pobrano kopię zapasową JSON');
+    }
+
+    function importJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          const list = Array.isArray(parsed) ? parsed : parsed.events;
+          if (!Array.isArray(list)) {
+            showToast('Nieprawidłowy plik kopii zapasowej', true);
+            return;
+          }
+
+          events = list
+            .filter(item => item && item.name && item.eventDate)
+            .map(item => ({
+              id: item.id || ('ev-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6)),
+              name: String(item.name),
+              venue: item.venue ? String(item.venue) : '',
+              eventDate: String(item.eventDate),
+              submissionDate: item.submissionDate ? String(item.submissionDate) : '',
+              opinions: {
+                policja: Boolean(item.opinions && item.opinions.policja),
+                psp: Boolean(item.opinions && item.opinions.psp),
+                zrm: Boolean(item.opinions && item.opinions.zrm),
+                sanepid: Boolean(item.opinions && item.opinions.sanepid)
+              },
+              decisionReceived: Boolean(item.decisionReceived),
+              decisionDate: item.decisionDate ? String(item.decisionDate) : '',
+              note: item.note ? String(item.note) : ''
+            }));
+
+          persistState(false);
+          closeToolsSheet();
+          renderApp();
+          showToast(`Wczytano ${events.length} imprez`);
+        } catch (err) {
+          showToast('Błąd odczytu pliku JSON', true);
+        }
+        event.target.value = '';
+      };
+      reader.readAsText(file);
+    }
+
+    function loadSampleEvents(closeModal = false) {
+      events = createSampleEvents();
+      collapsedMonths = {};
+      persistState(true);
+      if (closeModal) closeToolsSheet();
+      renderApp();
+      showToast('Załadowano 18 przykładowych imprez');
+    }
+
+    function clearAllData(closeModal = false) {
+      events = [];
+      collapsedMonths = {};
+      persistState(false);
+      if (closeModal) closeToolsSheet();
+      renderApp();
+      showToast('Lista wyczyszczona — możesz dodawać imprezy');
+    }
+
+    // =========================================================================
+    // 15. INICJALIZACJA APLIKACJI
+    // =========================================================================
+    // 14. SYSTEM POWIADOMIEŃ PUSH (<= 2 DNI) ORAZ EKSPORT ALARMÓW KALENDARZA .ICS
+    // =========================================================================
+    function isAutoNotifyEnabled() {
+      const val = safeStorage.getItem(AUTO_NOTIFY_KEY);
+      return val === null ? true : val === '1';
+    }
+
+    function toggleAutoNotify(enabled) {
+      safeStorage.setItem(AUTO_NOTIFY_KEY, enabled ? '1' : '0');
+      updateHeaderNotificationDot();
+      if (enabled) {
+        checkAndSendDeadlineNotifications(true);
+      }
+      showToast(enabled ? 'Włączono automatyczne alerty <= 2 dni' : 'Wyłączono auto-alerty');
+    }
+
+    function updateHeaderNotificationDot() {
+      const dot = document.getElementById('notifyHeaderDot');
+      if (!dot) return;
+      const hasAlertsWithin2Days = events.some(ev => {
+        const m = computeEventMetrics(ev);
+        if (!m.hasSubmitted && m.daysToSubmit <= 2) return true;
+        if (m.hasSubmitted && !m.allOpinionsDone && m.daysToOpinions <= 2) return true;
+        if (m.hasSubmitted && !m.isDecisionDone && m.daysToDecision <= 2) return true;
+        return false;
+      });
+      dot.classList.toggle('hidden', !hasAlertsWithin2Days);
+    }
+
+    function openNotificationsSheet() {
+      updatePushUIStatus();
+      renderUpcomingAlertsList();
+
+      const sheet = document.getElementById('notificationsSheet');
+      sheet.classList.remove('closed');
+      sheet.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeNotificationsSheet() {
+      const sheet = document.getElementById('notificationsSheet');
+      sheet.classList.add('closed');
+      sheet.setAttribute('aria-hidden', 'true');
+    }
+
+    function updatePushUIStatus() {
+      const badge = document.getElementById('pushPermissionBadge');
+      const reqBtn = document.getElementById('requestPushBtn');
+      const chk = document.getElementById('chkAutoNotify');
+      if (chk) chk.checked = isAutoNotifyEnabled();
+
+      if (!('Notification' in window)) {
+        badge.textContent = 'Wymaga instalacji na ekranie głównym iOS';
+        badge.className = 'status-badge badge-red';
+        if (reqBtn) reqBtn.textContent = 'Sprawdź uprawnienia';
+        return;
+      }
+
+      const perm = Notification.permission;
+      if (perm === 'granted') {
+        badge.textContent = 'Aktywne ✓';
+        badge.className = 'status-badge badge-green';
+        if (reqBtn) reqBtn.textContent = 'Sprawdź terminy teraz';
+      } else if (perm === 'denied') {
+        badge.textContent = 'Zablokowane w ustawieniach Safari';
+        badge.className = 'status-badge badge-red';
+        if (reqBtn) reqBtn.textContent = 'Odblokuj w Ustawieniach iOS';
+      } else {
+        badge.textContent = 'Oczekuje na zgodę';
+        badge.className = 'status-badge';
+        badge.style.backgroundColor = 'var(--ios-orange-bg)';
+        badge.style.color = 'var(--ios-orange-text)';
+        if (reqBtn) reqBtn.textContent = 'Włącz powiadomienia Push';
+      }
+    }
+
+    async function requestPushPermission() {
+      if (!('Notification' in window)) {
+        showToast('Na iPhone dodaj najpierw aplikację Do ekranu początkowego', true);
+        return;
+      }
+
+      if (Notification.permission === 'granted') {
+        checkAndSendDeadlineNotifications(true);
+        showToast('Sprawdzono terminy <= 2 dni');
+        return;
+      }
+
+      try {
+        const result = await Notification.requestPermission();
+        updatePushUIStatus();
+        if (result === 'granted') {
+          showToast('Powiadomienia Push włączone ✓');
+          checkAndSendDeadlineNotifications(true);
+        } else {
+          showToast('Brak zgody na powiadomienia w przeglądarce', true);
+        }
+      } catch (e) {
+        showToast('Nie udało się włączyć powiadomień', true);
+      }
+    }
+
+    function dispatchSystemNotification(title, body, tag) {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+      const options = {
+        body,
+        tag,
+        icon: generatedIcon180DataURL || undefined,
+        badge: generatedIcon180DataURL || undefined,
+        renotify: true
+      };
+
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready
+          .then(reg => {
+            if (reg && typeof reg.showNotification === 'function') {
+              return reg.showNotification(title, options);
+            }
+            new Notification(title, options);
+          })
+          .catch(() => {
+            try {
+              new Notification(title, options);
+            } catch (e) {}
+          });
+      } else {
+        try {
+          new Notification(title, options);
+        } catch (e) {}
+      }
+    }
+
+    function sendTestNotification() {
+      if (!('Notification' in window)) {
+        showToast('Dodaj aplikację do ekranu głównego iPhone, aby używać Push', true);
+        return;
+      }
+      if (Notification.permission !== 'granted') {
+        requestPushPermission();
+        return;
+      }
+      dispatchSystemNotification(
+        'Imprezy Masowe — Test alarmu',
+        'Powiadomienia na 2 dni przed terminem złożenia, opinii służb i Decyzji UM działają prawidłowo!',
+        'imprezy-test-' + Date.now()
+      );
+      showToast('Wysłano testowe powiadomienie');
+    }
+
+    /**
+     * Sprawdza przy otwarciu i powrocie do aplikacji wszystkie terminy <= 2 dni
+     * i wysyła powiadomienie push raz dziennie na dany termin.
+     */
+    function checkAndSendDeadlineNotifications(forceCheck = false) {
+      updateHeaderNotificationDot();
+      if (!forceCheck && !isAutoNotifyEnabled()) return;
+      if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+      const today = getTodayISO();
+      let history = {};
+      try {
+        history = JSON.parse(safeStorage.getItem(NOTIFIED_HISTORY_KEY) || '{}') || {};
+      } catch (e) {
+        history = {};
+      }
+
+      const alertsToFire = [];
+
+      events.forEach(ev => {
+        const m = computeEventMetrics(ev);
+
+        // 1. Złożenie dokumentów <= 2 dni
+        if (!m.hasSubmitted && m.daysToSubmit <= 2) {
+          const histKey = `${ev.id}_submit_${today}`;
+          if (!history[histKey]) {
+            history[histKey] = true;
+            const whenTxt = m.daysToSubmit < 0
+              ? `PO TERMINIE o ${odmianaDni(m.daysToSubmit)}!`
+              : (m.daysToSubmit === 0 ? 'TERMIN DZIŚ!' : `zostało ${odmianaDni(m.daysToSubmit)}!`);
+            alertsToFire.push({
+              title: `⚠️ Złożenie dokumentów: ${ev.name}`,
+              body: `Termin złożenia (do ${formatPLDate(m.submitDeadline)}): ${whenTxt}`,
+              tag: histKey
+            });
+          }
+        }
+
+        // 2. Opinie służb <= 2 dni
+        if (m.hasSubmitted && !m.allOpinionsDone && m.daysToOpinions !== null && m.daysToOpinions <= 2) {
+          const histKey = `${ev.id}_opinions_${today}`;
+          if (!history[histKey]) {
+            history[histKey] = true;
+            const whenTxt = m.daysToOpinions < 0
+              ? `PO TERMINIE o ${odmianaDni(m.daysToOpinions)}!`
+              : (m.daysToOpinions === 0 ? 'TERMIN DZIŚ!' : `zostało ${odmianaDni(m.daysToOpinions)}!`);
+            alertsToFire.push({
+              title: `⚠️ Opinie służb (${m.opinionsCount}/4): ${ev.name}`,
+              body: `Termin 14 dni (do ${formatPLDate(m.opinionsDeadline)}): ${whenTxt}`,
+              tag: histKey
+            });
+          }
+        }
+
+        // 3. Decyzja UM <= 2 dni
+        if (m.hasSubmitted && !m.isDecisionDone && m.daysToDecision !== null && m.daysToDecision <= 2) {
+          const histKey = `${ev.id}_decision_${today}`;
+          if (!history[histKey]) {
+            history[histKey] = true;
+            const whenTxt = m.daysToDecision < 0
+              ? `PO TERMINIE o ${odmianaDni(m.daysToDecision)}!`
+              : (m.daysToDecision === 0 ? 'TERMIN DZIŚ!' : `zostało ${odmianaDni(m.daysToDecision)}!`);
+            alertsToFire.push({
+              title: `⚠️ Decyzja UM: ${ev.name}`,
+              body: `Termin 30 dni (do ${formatPLDate(m.decisionDeadline)}): ${whenTxt}`,
+              tag: histKey
+            });
+          }
+        }
+      });
+
+      if (alertsToFire.length > 0) {
+        safeStorage.setItem(NOTIFIED_HISTORY_KEY, JSON.stringify(history));
+        alertsToFire.slice(0, 4).forEach((item, idx) => {
+          setTimeout(() => {
+            dispatchSystemNotification(item.title, item.body, item.tag);
+          }, idx * 700);
+        });
+      }
+    }
+
+    function renderUpcomingAlertsList() {
+      const listEl = document.getElementById('upcomingAlertsList');
+      if (!listEl) return;
+
+      const items = [];
+      events.forEach(ev => {
+        const m = computeEventMetrics(ev);
+        if (!m.hasSubmitted && m.daysToSubmit <= 2) {
+          items.push({
+            name: ev.name,
+            type: 'Złożenie dokumentów',
+            date: m.submitDeadline,
+            days: m.daysToSubmit
+          });
+        }
+        if (m.hasSubmitted && !m.allOpinionsDone && m.daysToOpinions <= 2) {
+          items.push({
+            name: ev.name,
+            type: `Opinie służb (${m.opinionsCount}/4)`,
+            date: m.opinionsDeadline,
+            days: m.daysToOpinions
+          });
+        }
+        if (m.hasSubmitted && !m.isDecisionDone && m.daysToDecision <= 2) {
+          items.push({
+            name: ev.name,
+            type: 'Decyzja UM',
+            date: m.decisionDeadline,
+            days: m.daysToDecision
+          });
+        }
+      });
+
+      if (items.length === 0) {
+        listEl.innerHTML = `
+          <div class="grouped-row" style="font-size: 13px; color: var(--ios-green-text); font-weight: 600;">
+            ✓ Brak aktywnych terminów z czasem 2 dni lub krótszym.
+          </div>
+        `;
+        return;
+      }
+
+      items.sort((a, b) => a.days - b.days);
+
+      listEl.innerHTML = items.map(it => {
+        const badgeText = it.days < 0
+          ? `Po terminie (${odmianaDni(it.days)})`
+          : (it.days === 0 ? 'DZIŚ' : `Za ${odmianaDni(it.days)}`);
+        return `
+          <div class="grouped-row" style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+            <div style="min-width: 0;">
+              <div style="font-size: 14px; font-weight: 700; color: var(--text-primary);">${escapeHTML(it.name)}</div>
+              <div style="font-size: 12px; color: var(--text-secondary);">${it.type} • ${formatPLDate(it.date)}</div>
+            </div>
+            <span class="status-badge badge-red" style="flex-shrink: 0;">⚠️ ${badgeText}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /**
+     * Generuje plik kalendarza RFC 5545 (.ics) z alarmem systemowym VALARM (TRIGGER:-P2D)
+     * dokładnie na 2 dni przed każdym aktywnym terminem (złożenie, opinie służb, Decyzja UM).
+     */
+    function escapeICS(str) {
+      return String(str || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/;/g, '\\;')
+        .replace(/,/g, '\\,')
+        .replace(/\r?\n/g, '\\n');
+    }
+
+    function toICSCompactDate(isoDate) {
+      return String(isoDate).replace(/-/g, '');
+    }
+
+    function buildICSEventsForList(eventList) {
+      const nowStamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+      const vevents = [];
+
+      eventList.forEach(ev => {
+        const m = computeEventMetrics(ev);
+
+        const pushAlarmEvent = (uidSuffix, targetDateISO, summary, description) => {
+          if (!targetDateISO) return;
+          const dtStart = toICSCompactDate(targetDateISO);
+          const dtEnd = toICSCompactDate(addDaysISO(targetDateISO, 1));
+          vevents.push([
+            'BEGIN:VEVENT',
+            `UID:${ev.id}-${uidSuffix}@imprezy-masowe-pwa`,
+            `DTSTAMP:${nowStamp}`,
+            `DTSTART;VALUE=DATE:${dtStart}`,
+            `DTEND;VALUE=DATE:${dtEnd}`,
+            `SUMMARY:${escapeICS(summary)}`,
+            `DESCRIPTION:${escapeICS(description)}`,
+            'BEGIN:VALARM',
+            'ACTION:DISPLAY',
+            `DESCRIPTION:${escapeICS('ALARM (za 2 dni): ' + summary)}`,
+            'TRIGGER:-P2D',
+            'END:VALARM',
+            'BEGIN:VALARM',
+            'ACTION:DISPLAY',
+            `DESCRIPTION:${escapeICS('DZIŚ TERMIN: ' + summary)}`,
+            'TRIGGER:PT8H',
+            'END:VALARM',
+            'END:VEVENT'
+          ].join('\r\n'));
+        };
+
+        // 1. Termin złożenia dokumentów (30 dni przed imprezą)
+        if (!m.hasSubmitted) {
+          pushAlarmEvent(
+            'zlozenie',
+            m.submitDeadline,
+            `[DO ZŁOŻENIA] ${ev.name}`,
+            `Ustawowy termin złożenia dokumentów (30 dni przed imprezą). Data imprezy: ${formatPLDate(ev.eventDate)}. Obiekt: ${ev.venue || '-'}.`
+          );
+        }
+
+        // 2. Termin na opinie służb (14 dni od złożenia)
+        if (m.hasSubmitted && !m.allOpinionsDone && m.opinionsDeadline) {
+          const missing = [];
+          if (!m.opinions.policja) missing.push('Policja');
+          if (!m.opinions.psp) missing.push('Straż Pożarna');
+          if (!m.opinions.sanepid) missing.push('Sanepid');
+          if (!m.opinions.zrm) missing.push('Pogotowie');
+
+          pushAlarmEvent(
+            'opinie',
+            m.opinionsDeadline,
+            `[OPINIE SŁUŻB] ${ev.name}`,
+            `Upływa 14 dni od złożenia dokumentów (${formatPLDate(ev.submissionDate)}). Brakujące opinie: ${missing.join(', ')}.`
+          );
+        }
+
+        // 3. Termin na Decyzję UM (30 dni od złożenia)
+        if (m.hasSubmitted && !m.isDecisionDone && m.decisionDeadline) {
+          pushAlarmEvent(
+            'decyzja-um',
+            m.decisionDeadline,
+            `[DECYZJA UM] ${ev.name}`,
+            `Upływa 30 dni od złożenia wniosku (${formatPLDate(ev.submissionDate)}) na wydanie Decyzji UM. Data imprezy: ${formatPLDate(ev.eventDate)}.`
+          );
+        }
+      });
+
+      if (vevents.length === 0) return null;
+
+      return [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//Imprezy Masowe PWA//Terminarz iOS//PL',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        ...vevents,
+        'END:VCALENDAR'
+      ].join('\r\n');
+    }
+
+    function exportSingleEventICS(eventId) {
+      const ev = events.find(e => e.id === eventId);
+      if (!ev) return;
+      const icsContent = buildICSEventsForList([ev]);
+      if (!icsContent) {
+        showToast('Wszystkie terminy tej imprezy są już zakończone');
+        return;
+      }
+      const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+      downloadFile(blob, `alarmy_impreza_${ev.eventDate}.ics`);
+      showToast('Pobrano alarmy (-2 dni) do Kalendarza iPhone');
+    }
+
+    function exportAllICS() {
+      const icsContent = buildICSEventsForList(events);
+      if (!icsContent) {
+        showToast('Brak aktywnych terminów do eksportu');
+        return;
+      }
+      const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+      downloadFile(blob, `imprezy_masowe_alarmy_2dni_${getTodayISO()}.ics`);
+      showToast('Pobrano plik .ics z alarmami 2 dni przed terminem');
+    }
+
+    // =========================================================================
+    // 15. MENU KOPIA / EKSPORT: CSV, JSON, DANE PRZYKŁADOWE I CZYSZCZENIE
+    // =========================================================================
+    function openToolsSheet() {
+      const doneCount = events.filter(e => computeEventMetrics(e).isFullyCompleted).length;
+      document.getElementById('toolStatTotal').textContent = events.length;
+      document.getElementById('toolStatActive').textContent = events.length - doneCount;
+      document.getElementById('toolStatDone').textContent = doneCount;
+      document.getElementById('toolsClearConfirm').classList.add('hidden');
+
+      const sheet = document.getElementById('toolsSheet');
+      sheet.classList.remove('closed');
+      sheet.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeToolsSheet() {
+      const sheet = document.getElementById('toolsSheet');
+      sheet.classList.add('closed');
+      sheet.setAttribute('aria-hidden', 'true');
+    }
+
+    function downloadFile(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function exportCSV() {
+      const headers = [
+        'Status glowny',
+        'Nazwa imprezy',
+        'Miejsce / Obiekt',
+        'Data imprezy',
+        'Termin zlozenia (30 dni przed)',
+        'Data zlozenia dokumentow',
+        'Termin opinii sluzb (14 dni)',
+        'Policja',
+        'Straz Pozarna',
+        'Sanepid',
+        'Pogotowie',
+        'Termin Decyzji UM (30 dni)',
+        'Decyzja UM odebrana',
+        'Data odbioru Decyzji UM',
+        'Notatki'
+      ];
+
+      const sorted = [...events].sort((a, b) => a.eventDate.localeCompare(b.eventDate));
+
+      const rows = sorted.map(ev => {
+        const m = computeEventMetrics(ev);
+        const cols = [
+          m.hasSubmitted ? 'ZLOZONE' : 'DO ZLOZENIA',
+          ev.name,
+          ev.venue || '',
+          formatPLDate(ev.eventDate),
+          formatPLDate(m.submitDeadline),
+          ev.submissionDate ? formatPLDate(ev.submissionDate) : 'Nie zlozono',
+          m.opinionsDeadline ? formatPLDate(m.opinionsDeadline) : '-',
+          m.opinions.policja ? 'TAK' : 'NIE',
+          m.opinions.psp ? 'TAK' : 'NIE',
+          m.opinions.sanepid ? 'TAK' : 'NIE',
+          m.opinions.zrm ? 'TAK' : 'NIE',
+          m.decisionDeadline ? formatPLDate(m.decisionDeadline) : '-',
+          m.isDecisionDone ? 'TAK' : 'NIE',
+          ev.decisionDate ? formatPLDate(ev.decisionDate) : '-',
+          ev.note || ''
+        ];
+        return cols.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';');
+      });
+
+      const csvString = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+      const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+      downloadFile(blob, `imprezy_masowe_${getTodayISO()}.csv`);
+      showToast('Wyeksportowano CSV');
+    }
+
+    function exportJSON() {
+      const backup = {
+        app: 'Imprezy Masowe PWA',
+        exportedAt: new Date().toISOString(),
+        events
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      downloadFile(blob, `imprezy_masowe_kopia_${getTodayISO()}.json`);
+      showToast('Pobrano kopię zapasową JSON');
+    }
+
+    function importJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          const list = Array.isArray(parsed) ? parsed : parsed.events;
+          if (!Array.isArray(list)) {
+            showToast('Nieprawidłowy plik kopii zapasowej', true);
+            return;
+          }
+
+          events = list
+            .filter(item => item && item.name && item.eventDate)
+            .map(normalizeEventObject);
+
+          persistState(false);
+          closeToolsSheet();
+          renderApp();
+          checkAndSendDeadlineNotifications();
+          showToast(`Wczytano ${events.length} imprez`);
+        } catch (err) {
+          showToast('Błąd odczytu pliku JSON', true);
+        }
+        event.target.value = '';
+      };
+      reader.readAsText(file);
+    }
+
+    function loadSampleEvents(closeModal = false) {
+      events = createSampleEvents();
+      persistState(true);
+      if (closeModal) closeToolsSheet();
+      renderApp();
+      showToast('Załadowano 4 przykładowe imprezy testowe');
+    }
+
+    function clearAllData(closeModal = false) {
+      events = [];
+      persistState(false);
+      if (closeModal) closeToolsSheet();
+      renderApp();
+      showToast('Lista wyczyszczona — możesz dodawać imprezy');
+    }
+
+    // =========================================================================
+    // 16. INICJALIZACJA APLIKACJI I NASŁUCH POWIADOMIEŃ
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      setupIOSPWA();
+      renderTodaySubtitle();
+      initState();
+      renderApp();
+      checkAndSendDeadlineNotifications();
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        renderTodaySubtitle();
+        renderApp();
+        checkAndSendDeadlineNotifications();
+      }
+    });
+  </script>
+</body>
+</html>
