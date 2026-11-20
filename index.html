@@ -5,11 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Imprezy Masowe – FORT</title>
 
-  <!-- Ikona i tytuł dla ekranu początkowego iPhone (bez izolowanego trybu standalone blokującego logowanie Google) -->
   <meta name="apple-mobile-web-app-title" content="Imprezy FORT" />
   <meta name="theme-color" content="#0f172a" />
   <link id="apple-icon" rel="apple-touch-icon" href="icon.png" />
   <link id="favicon-icon" rel="icon" type="image/png" href="icon.png" />
+
+  <script>
+    window.addEventListener("error", function (e) {
+      var el = document.getElementById("auth-error");
+      if (el) {
+        el.style.color = "#fca5a5";
+        el.textContent = "Błąd aplikacji: " + (e.message || "nieznany błąd skryptu");
+      }
+    });
+    window.addEventListener("unhandledrejection", function (e) {
+      var el = document.getElementById("auth-error");
+      if (el && e.reason) {
+        el.style.color = "#fca5a5";
+        el.textContent = "Błąd połączenia: " + (e.reason.message || e.reason);
+      }
+    });
+  </script>
 
   <style>
     :root {
@@ -297,7 +313,6 @@
       margin-bottom: 12px;
     }
 
-    /* Migający czerwony alert dla terminów poniżej 2 dni */
     @keyframes pulseDanger {
       0%, 100% {
         border-color: #ef4444;
@@ -368,7 +383,6 @@
       gap: 8px;
     }
 
-    /* Siatka opinii służb z przyciskiem + do wgrania skanu/zdjęcia/PDF */
     .opinions-section-label {
       font-size: 12px;
       color: var(--text-muted);
@@ -486,7 +500,6 @@
       padding: 0;
     }
 
-    /* Sekcja Decyzji UM z przyciskiem + */
     .decision-box {
       margin-top: 10px;
       background: rgba(59, 130, 246, 0.12);
@@ -544,7 +557,6 @@
       border-color: rgba(239, 68, 68, 0.4);
     }
 
-    /* Przycisk dodawania (+) */
     .fab {
       position: fixed;
       right: 20px;
@@ -565,7 +577,6 @@
       justify-content: center;
     }
 
-    /* Modal */
     .modal-backdrop {
       display: none;
       position: fixed;
@@ -618,7 +629,6 @@
       font-family: inherit;
     }
 
-    /* Pasek postępu wysyłania na Dysk Google */
     #upload-toast {
       position: fixed;
       left: 16px;
@@ -665,7 +675,6 @@
 </head>
 <body>
 
-  <!-- Ukryty input do wyboru zdjęcia, skanu lub PDF -->
   <input
     type="file"
     id="hidden-file-input"
@@ -692,7 +701,7 @@
       </button>
       <div>
         <button id="redirect-login-btn" type="button" class="redirect-fallback-btn">
-          Okno logowania nie otwiera się? Zaloguj bez wyskakującego okna
+          Zaloguj metodą przekierowania (bez wyskakującego okna)
         </button>
       </div>
       <p id="auth-error" style="color: #fca5a5; font-size: 13px; margin-top: 14px; line-height: 1.45;"></p>
@@ -819,9 +828,11 @@
       signOut,
       onAuthStateChanged,
       setPersistence,
-      browserLocalPersistence
+      browserLocalPersistence,
+      inMemoryPersistence
     } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
     import {
+      getFirestore,
       initializeFirestore,
       persistentLocalCache,
       persistentMultipleTabManager,
@@ -859,19 +870,93 @@
       pogotowie: "Pogotowie"
     };
 
+    const authScreen = document.getElementById("auth-screen");
+    const appShell = document.getElementById("app-shell");
+    const authError = document.getElementById("auth-error");
+    const loginBtn = document.getElementById("login-btn");
+    const loginBtnText = document.getElementById("login-btn-text");
+    const redirectLoginBtn = document.getElementById("redirect-login-btn");
+
+    function showAuthStatus(msg, isError = true) {
+      authError.style.color = isError ? "#fca5a5" : "#93c5fd";
+      authError.textContent = msg;
+    }
+
+    function resetLoginBtn() {
+      loginBtn.disabled = false;
+      loginBtnText.textContent = "Zaloguj przez Google";
+    }
+
+    function formatAuthError(err) {
+      const code = err?.code || "";
+      if (code === "auth/unauthorized-domain") {
+        return "Domena GitHub Pages nie jest dodana w Firebase -> Authentication -> Settings -> Authorized domains.";
+      }
+      if (code === "auth/popup-blocked") {
+        return "Safari zablokowało wyskakujące okno. Kliknij niebieski link powyżej lub wyłącz blokadę wyskakujących okien w Ustawieniach Safari.";
+      }
+      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+        return "Zamknięto okno logowania przed zakończeniem.";
+      }
+      if (code === "auth/operation-not-supported-in-this-environment") {
+        return "Otwórz adres bezpośrednio w zwykłej karcie Safari (nie w trybie prywatnym ani w podglądzie).";
+      }
+      return "Błąd logowania (" + (code || "nieznany") + "): " + (err?.message || "");
+    }
+
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    setPersistence(auth, browserLocalPersistence).catch(() => {});
-
-    const db = initializeFirestore(app, {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-      })
+    setPersistence(auth, browserLocalPersistence).catch(() => {
+      setPersistence(auth, inMemoryPersistence).catch(() => {});
     });
 
     const provider = new GoogleAuthProvider();
     provider.addScope("https://www.googleapis.com/auth/drive.file");
     provider.setCustomParameters({ prompt: "select_account" });
+
+    // Natychmiastowe podpięcie przycisków logowania (niezależnie od stanu bazy danych)
+    loginBtn.addEventListener("click", () => {
+      loginBtn.disabled = true;
+      loginBtnText.textContent = "Otwieranie okna Google...";
+      showAuthStatus("Łączenie z kontem Google...", false);
+
+      signInWithPopup(auth, provider)
+        .then((result) => {
+          resetLoginBtn();
+          showAuthStatus("", false);
+          const cred = GoogleAuthProvider.credentialFromResult(result);
+          if (cred?.accessToken) {
+            saveDriveToken(cred.accessToken);
+          }
+        })
+        .catch((err) => {
+          resetLoginBtn();
+          showAuthStatus(formatAuthError(err), true);
+        });
+    });
+
+    redirectLoginBtn.addEventListener("click", () => {
+      loginBtn.disabled = true;
+      loginBtnText.textContent = "Przekierowanie do Google...";
+      showAuthStatus("Przekierowywanie na stronę logowania Google...", false);
+
+      signInWithRedirect(auth, provider).catch((err) => {
+        resetLoginBtn();
+        showAuthStatus(formatAuthError(err), true);
+      });
+    });
+
+    // Bezpieczna inicjalizacja Firestore z awaryjnym przełączeniem (ważne dla Safari iOS / trybu prywatnego)
+    let db;
+    try {
+      db = initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager()
+        })
+      });
+    } catch (e) {
+      db = getFirestore(app);
+    }
 
     // Generowanie ikony startowej PWA dla iPhone jeśli brak osobnego pliku icon.png
     (function ensureAppleIcon() {
@@ -918,12 +1003,6 @@
     let pendingUploadContext = null;
     let pendingFileAfterReauth = null;
 
-    // Elementy DOM
-    const authScreen = document.getElementById("auth-screen");
-    const appShell = document.getElementById("app-shell");
-    const authError = document.getElementById("auth-error");
-    const loginBtn = document.getElementById("login-btn");
-    const loginBtnText = document.getElementById("login-btn-text");
     const syncDot = document.getElementById("sync-dot");
     const syncText = document.getElementById("sync-text");
     const driveStatusBtn = document.getElementById("drive-status-btn");
@@ -939,24 +1018,30 @@
     // Zarządzanie tokenem dostępu do Dysku Google
     function saveDriveToken(token) {
       if (!token) return;
-      localStorage.setItem(DRIVE_TOKEN_KEY, token);
-      localStorage.setItem(DRIVE_EXPIRY_KEY, String(Date.now() + 52 * 60 * 1000));
+      try {
+        localStorage.setItem(DRIVE_TOKEN_KEY, token);
+        localStorage.setItem(DRIVE_EXPIRY_KEY, String(Date.now() + 52 * 60 * 1000));
+      } catch (_) {}
       updateDrivePillUI();
     }
 
     function clearDriveToken() {
-      localStorage.removeItem(DRIVE_TOKEN_KEY);
-      localStorage.removeItem(DRIVE_EXPIRY_KEY);
+      try {
+        localStorage.removeItem(DRIVE_TOKEN_KEY);
+        localStorage.removeItem(DRIVE_EXPIRY_KEY);
+      } catch (_) {}
       cachedRootFolderId = null;
       updateDrivePillUI();
     }
 
     function getValidDriveToken() {
-      const token = localStorage.getItem(DRIVE_TOKEN_KEY);
-      const expiry = Number(localStorage.getItem(DRIVE_EXPIRY_KEY) || 0);
-      if (token && Date.now() < expiry) {
-        return token;
-      }
+      try {
+        const token = localStorage.getItem(DRIVE_TOKEN_KEY);
+        const expiry = Number(localStorage.getItem(DRIVE_EXPIRY_KEY) || 0);
+        if (token && Date.now() < expiry) {
+          return token;
+        }
+      } catch (_) {}
       return null;
     }
 
@@ -1015,35 +1100,13 @@
 
     function sanitizeDriveName(str = "") {
       return String(str)
-        .replace(/[\/:*?"<>|]/g, "_")
+        .replace(/[\\/:*?"<>|]/g, "_")
         .replace(/\s+/g, " ")
         .trim()
         .slice(0, 80);
     }
 
-    function resetLoginBtn() {
-      loginBtn.disabled = false;
-      loginBtnText.textContent = "Zaloguj przez Google";
-    }
-
-    function formatAuthError(err) {
-      const code = err?.code || "";
-      if (code === "auth/unauthorized-domain") {
-        return "Domena GitHub Pages nie jest dodana w Firebase -> Authentication -> Settings -> Authorized domains.";
-      }
-      if (code === "auth/popup-blocked") {
-        return "Safari zablokowało wyskakujące okno. Włącz wyskakujące okna w Ustawieniach -> Safari -> Blokuj okna wyskakujące (wyłącz) lub kliknij link poniżej.";
-      }
-      if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
-        return "Zamknięto okno logowania przed zakończeniem.";
-      }
-      if (code === "auth/operation-not-supported-in-this-environment") {
-        return "Otwórz stronę bezpośrednio w przeglądarce Safari zamiast w widoku wbudowanym.";
-      }
-      return "Błąd logowania: " + (err?.message || code);
-    }
-
-    // Obsługa powrotu z logowania metodą przekierowania (fallback dla iOS)
+    // Obsługa powrotu z logowania metodą przekierowania
     getRedirectResult(auth)
       .then((result) => {
         if (result) {
@@ -1054,45 +1117,8 @@
         }
       })
       .catch((err) => {
-        authError.textContent = formatAuthError(err);
+        showAuthStatus(formatAuthError(err), true);
       });
-
-    // Główny przycisk logowania Google
-    loginBtn.addEventListener("click", () => {
-      authError.textContent = "";
-      loginBtn.disabled = true;
-      loginBtnText.textContent = "Otwieranie okna Google...";
-
-      signInWithPopup(auth, provider)
-        .then((result) => {
-          resetLoginBtn();
-          const cred = GoogleAuthProvider.credentialFromResult(result);
-          if (cred?.accessToken) {
-            saveDriveToken(cred.accessToken);
-          }
-        })
-        .catch((err) => {
-          resetLoginBtn();
-          if (err?.code === "auth/popup-blocked") {
-            signInWithRedirect(auth, provider).catch((rErr) => {
-              authError.textContent = formatAuthError(rErr);
-            });
-          } else {
-            authError.textContent = formatAuthError(err);
-          }
-        });
-    });
-
-    // Alternatywne logowanie bez wyskakującego okna (przekierowanie w tej samej karcie)
-    document.getElementById("redirect-login-btn").addEventListener("click", () => {
-      authError.textContent = "";
-      loginBtn.disabled = true;
-      loginBtnText.textContent = "Przekierowanie do Google...";
-      signInWithRedirect(auth, provider).catch((err) => {
-        resetLoginBtn();
-        authError.textContent = formatAuthError(err);
-      });
-    });
 
     function connectGoogleDrive(afterSuccessCallback) {
       const authPromise = auth.currentUser
@@ -1149,7 +1175,7 @@
         const userEmail = (user.email || "").toLowerCase();
         const allowedLower = ALLOWED_EMAILS.map((e) => e.toLowerCase());
         if (allowedLower.length > 0 && !allowedLower.includes(userEmail)) {
-          authError.textContent = `Brak uprawnień dla konta: ${user.email}`;
+          showAuthStatus(`Brak uprawnień dla konta: ${user.email}`, true);
           clearDriveToken();
           signOut(auth);
           return;
@@ -1254,7 +1280,7 @@
 
     async function findOrCreateFolder(folderName, parentId, token) {
       const safeName = sanitizeDriveName(folderName) || "Bez nazwy";
-      const escapedForQuery = safeName.replace(/'/g, "\'");
+      const escapedForQuery = safeName.replace(/'/g, "\\'");
       let query = `name='${escapedForQuery}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
       if (parentId) {
         query += ` and '${parentId}' in parents`;
@@ -1302,24 +1328,17 @@
       };
 
       const boundary = "-------fort_drive_boundary_" + Date.now();
-      const delimiter = `
---${boundary}
-`;
-      const closeDelimiter = `
---${boundary}--`;
+      const delimiter = `\r\n--${boundary}\r\n`;
+      const closeDelimiter = `\r\n--${boundary}--`;
 
       const metadataPart =
         delimiter +
-        "Content-Type: application/json; charset=UTF-8
-
-" +
+        "Content-Type: application/json; charset=UTF-8\r\n\r\n" +
         JSON.stringify(metadata);
 
       const fileHeaderPart =
         delimiter +
-        `Content-Type: ${file.type || "application/octet-stream"}
-
-`;
+        `Content-Type: ${file.type || "application/octet-stream"}\r\n\r\n`;
 
       const multipartBody = new Blob(
         [metadataPart, fileHeaderPart, file, closeDelimiter],
@@ -1881,16 +1900,16 @@
 
     // Jednorazowa migracja danych z poprzedniej wersji (localStorage)
     function findLegacyLocalEvents() {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (!key || key.startsWith("firebase") || key.startsWith("fort_gdrive")) continue;
-        try {
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (!key || key.startsWith("firebase") || key.startsWith("fort_gdrive")) continue;
           const parsed = JSON.parse(localStorage.getItem(key));
           if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].eventDate && parsed[0].name) {
             return { key, items: parsed };
           }
-        } catch (_) {}
-      }
+        }
+      } catch (_) {}
       return null;
     }
 
