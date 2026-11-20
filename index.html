@@ -131,13 +131,20 @@
       margin: 0;
     }
 
+    .status-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-top: 3px;
+    }
+
     .sync-status {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      font-size: 12px;
+      gap: 5px;
+      font-size: 11px;
       color: var(--text-muted);
-      margin-top: 2px;
     }
 
     .sync-dot {
@@ -151,9 +158,36 @@
     .sync-dot.online { background: var(--success); }
     .sync-dot.error { background: var(--danger); }
 
+    .drive-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+
+    .drive-pill.connected {
+      border-color: rgba(16, 185, 129, 0.45);
+      background: rgba(16, 185, 129, 0.14);
+      color: #34d399;
+    }
+
+    .drive-pill.expired {
+      border-color: rgba(245, 158, 11, 0.55);
+      background: rgba(245, 158, 11, 0.18);
+      color: #fcd34d;
+    }
+
     .header-actions {
       display: flex;
       gap: 6px;
+      flex-shrink: 0;
     }
 
     .icon-btn {
@@ -321,51 +355,149 @@
       gap: 8px;
     }
 
+    /* Siatka opinii służb z przyciskiem + do wgrania skanu/zdjęcia/PDF */
+    .opinions-section-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 12px 0 6px;
+      font-weight: 600;
+    }
+
     .opinions-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 8px;
-      margin-top: 12px;
     }
 
-    .check-pill {
+    @media (max-width: 420px) {
+      .opinions-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .opinion-slot {
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 8px;
       background: var(--surface-2);
       border: 1px solid var(--border);
-      padding: 9px 10px;
-      border-radius: 10px;
+      padding: 8px 10px;
+      border-radius: 11px;
       font-size: 13px;
+      min-height: 44px;
+    }
+
+    .opinion-slot.uploaded {
+      border-color: rgba(16, 185, 129, 0.55);
+      background: rgba(16, 185, 129, 0.12);
+    }
+
+    .opinion-name {
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .opinion-name span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .slot-controls {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    .plus-upload-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      border: 1px solid rgba(59, 130, 246, 0.65);
+      background: rgba(59, 130, 246, 0.22);
+      color: #93c5fd;
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1;
       cursor: pointer;
-      user-select: none;
+      padding: 0;
     }
 
-    .check-pill input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
-      accent-color: var(--success);
-      margin: 0;
+    .plus-upload-btn:active {
+      transform: scale(0.94);
+      background: var(--primary);
+      color: #ffffff;
     }
 
-    .check-pill.checked {
-      border-color: rgba(16, 185, 129, 0.5);
-      background: rgba(16, 185, 129, 0.1);
+    .plus-upload-btn.small {
+      width: 26px;
+      height: 26px;
+      font-size: 16px;
     }
 
+    .file-view-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 7px;
+      background: rgba(16, 185, 129, 0.22);
+      border: 1px solid rgba(16, 185, 129, 0.45);
+      color: #6ee7b7;
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .file-remove-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      background: rgba(239, 68, 68, 0.12);
+      color: #fca5a5;
+      font-size: 12px;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    /* Sekcja Decyzji UM z przyciskiem + */
     .decision-box {
       margin-top: 10px;
       background: rgba(59, 130, 246, 0.12);
-      border: 1px solid rgba(59, 130, 246, 0.4);
+      border: 1px solid rgba(59, 130, 246, 0.42);
       padding: 10px 12px;
-      border-radius: 10px;
+      border-radius: 11px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
       font-size: 13px;
       font-weight: 600;
-      cursor: pointer;
+    }
+
+    .decision-box.completed {
+      background: rgba(16, 185, 129, 0.12);
+      border-color: rgba(16, 185, 129, 0.45);
+    }
+
+    .archived-files-list {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
     }
 
     .card-actions {
@@ -473,6 +605,41 @@
       font-family: inherit;
     }
 
+    /* Pasek postępu wysyłania na Dysk Google */
+    #upload-toast {
+      position: fixed;
+      left: 16px;
+      right: 16px;
+      bottom: calc(88px + var(--safe-bottom));
+      max-width: 520px;
+      margin: 0 auto;
+      background: #1e293b;
+      border: 1px solid var(--primary);
+      border-radius: 14px;
+      padding: 12px 16px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+      z-index: 60;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid rgba(96, 165, 250, 0.25);
+      border-top-color: #60a5fa;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     .empty-state {
       text-align: center;
       padding: 48px 16px;
@@ -485,13 +652,21 @@
 </head>
 <body>
 
+  <!-- Ukryty input do wyboru zdjęcia, skanu lub PDF -->
+  <input
+    type="file"
+    id="hidden-file-input"
+    accept="image/*,application/pdf,.pdf,.jpg,.jpeg,.png,.heic,.webp"
+    class="hidden"
+  />
+
   <!-- EKRAN LOGOWANIA -->
   <section id="auth-screen">
     <div class="auth-card">
       <div class="auth-logo">FORT</div>
       <h1 style="margin: 0 0 8px; font-size: 22px;">Imprezy Masowe</h1>
       <p style="margin: 0; color: var(--text-muted); font-size: 14px; line-height: 1.5;">
-        Zaloguj się kontem Google, aby synchronizować dokumentację i terminy między iPhonem a komputerem.
+        Zaloguj się kontem Google, aby synchronizować terminy oraz zapisywać skany opinii i decyzji na Dysku Google.
       </p>
       <button id="login-btn" type="button" class="btn-google">
         <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
@@ -512,9 +687,14 @@
       <div class="header-top">
         <div>
           <h1 class="header-title">Imprezy Masowe</h1>
-          <div class="sync-status">
-            <span id="sync-dot" class="sync-dot"></span>
-            <span id="sync-text">Łączenie z chmurą...</span>
+          <div class="status-row">
+            <div class="sync-status">
+              <span id="sync-dot" class="sync-dot"></span>
+              <span id="sync-text">Łączenie...</span>
+            </div>
+            <button id="drive-status-btn" type="button" class="drive-pill" title="Status połączenia z Dyskiem Google">
+              Dysk Google: sprawdź
+            </button>
           </div>
         </div>
         <div class="header-actions">
@@ -553,6 +733,17 @@
     </main>
 
     <button id="add-btn" type="button" class="fab" aria-label="Dodaj imprezę">+</button>
+  </div>
+
+  <!-- POWIADOMIENIE O WYSYŁANIU / ODNAWIANIU SESJI DYSKU -->
+  <div id="upload-toast" class="hidden">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div id="upload-spinner" class="spinner"></div>
+      <span id="upload-status-text">Wysyłanie pliku na Dysk Google...</span>
+    </div>
+    <button id="upload-reauth-btn" type="button" class="btn-sm btn-primary hidden">
+      Połącz Dysk i wyślij
+    </button>
   </div>
 
   <!-- MODAL DODAWANIA / EDYCJI -->
@@ -604,6 +795,7 @@
       getAuth,
       GoogleAuthProvider,
       signInWithPopup,
+      reauthenticateWithPopup,
       signOut,
       onAuthStateChanged,
       setPersistence,
@@ -618,6 +810,7 @@
       addDoc,
       updateDoc,
       deleteDoc,
+      deleteField,
       onSnapshot
     } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
@@ -632,16 +825,25 @@
       measurementId: "G-B0R7GZRW0G"
     };
 
-    // Autoryzowane konta Google
     const ALLOWED_EMAILS = [
       "irek1987.pl@gmail.com"
     ];
+
+    const ROOT_DRIVE_FOLDER_NAME = "Imprezy Masowe FORT";
+    const DRIVE_TOKEN_KEY = "fort_gdrive_token";
+    const DRIVE_EXPIRY_KEY = "fort_gdrive_expiry";
+
+    const SERVICE_LABELS = {
+      policja: "Policja",
+      straz: "Straż Pożarna",
+      sanepid: "Sanepid",
+      pogotowie: "Pogotowie"
+    };
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     setPersistence(auth, browserLocalPersistence).catch(() => {});
 
-    // Pamięć offline obsługująca wiele kart i aplikację na ekranie głównym iOS
     const db = initializeFirestore(app, {
       localCache: persistentLocalCache({
         tabManager: persistentMultipleTabManager()
@@ -649,6 +851,7 @@
     });
 
     const provider = new GoogleAuthProvider();
+    provider.addScope("https://www.googleapis.com/auth/drive.file");
     provider.setCustomParameters({ prompt: "select_account" });
 
     // Generowanie ikony startowej PWA dla iPhone jeśli brak osobnego pliku icon.png
@@ -691,6 +894,11 @@
     let searchQuery = "";
     let unsubscribeSnapshot = null;
     let currentUser = null;
+    let cachedRootFolderId = null;
+
+    // Stan bieżącego wgrywania pliku
+    let pendingUploadContext = null; // { eventId, docType: 'opinion' | 'decision', serviceKey?: string }
+    let pendingFileAfterReauth = null; // { file, context }
 
     // Elementy DOM
     const authScreen = document.getElementById("auth-screen");
@@ -698,11 +906,55 @@
     const authError = document.getElementById("auth-error");
     const syncDot = document.getElementById("sync-dot");
     const syncText = document.getElementById("sync-text");
+    const driveStatusBtn = document.getElementById("drive-status-btn");
     const eventsList = document.getElementById("events-list");
     const modal = document.getElementById("event-modal");
     const form = document.getElementById("event-form");
+    const hiddenFileInput = document.getElementById("hidden-file-input");
+    const uploadToast = document.getElementById("upload-toast");
+    const uploadSpinner = document.getElementById("upload-spinner");
+    const uploadStatusText = document.getElementById("upload-status-text");
+    const uploadReauthBtn = document.getElementById("upload-reauth-btn");
 
-    // Pomocnicze funkcje dat (lokalne, bez przesunięć stref czasowych)
+    // Zarządzanie tokenem dostępu do Dysku Google
+    function saveDriveToken(token) {
+      if (!token) return;
+      localStorage.setItem(DRIVE_TOKEN_KEY, token);
+      // Token OAuth Google ważny 60 min — zapisujemy bufor 52 min
+      localStorage.setItem(DRIVE_EXPIRY_KEY, String(Date.now() + 52 * 60 * 1000));
+      updateDrivePillUI();
+    }
+
+    function clearDriveToken() {
+      localStorage.removeItem(DRIVE_TOKEN_KEY);
+      localStorage.removeItem(DRIVE_EXPIRY_KEY);
+      cachedRootFolderId = null;
+      updateDrivePillUI();
+    }
+
+    function getValidDriveToken() {
+      const token = localStorage.getItem(DRIVE_TOKEN_KEY);
+      const expiry = Number(localStorage.getItem(DRIVE_EXPIRY_KEY) || 0);
+      if (token && Date.now() < expiry) {
+        return token;
+      }
+      return null;
+    }
+
+    function updateDrivePillUI() {
+      const valid = Boolean(getValidDriveToken());
+      if (valid) {
+        driveStatusBtn.className = "drive-pill connected";
+        driveStatusBtn.textContent = "Dysk Google: aktywny";
+      } else {
+        driveStatusBtn.className = "drive-pill expired";
+        driveStatusBtn.textContent = "Dysk Google: połącz";
+      }
+    }
+
+    setInterval(updateDrivePillUI, 30000);
+
+    // Pomocnicze funkcje dat
     function todayStr() {
       const d = new Date();
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -742,28 +994,80 @@
         .replace(/'/g, "&#39;");
     }
 
+    function sanitizeDriveName(str = "") {
+      return String(str)
+        .replace(/[\/:*?"<>|]/g, "_")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 80);
+    }
+
     function formatAuthError(err) {
       const code = err?.code || "";
       if (code === "auth/unauthorized-domain") {
         return "Domena GitHub Pages nie jest dodana w Firebase -> Authentication -> Settings -> Authorized domains.";
       }
       if (code === "auth/popup-blocked") {
-        return "Przeglądarka zablokowała okno logowania. Zezwól na wyskakujące okna w ustawieniach Safari/przeglądarki.";
+        return "Przeglądarka zablokowała okno logowania. Zezwól na wyskakujące okna w ustawieniach przeglądarki.";
       }
       if (code === "auth/popup-closed-by-user") {
         return "Zamknięto okno logowania przed zakończeniem.";
       }
-      if (code === "auth/invalid-api-key") {
-        return "Nieprawidłowy klucz apiKey w konfiguracji firebaseConfig.";
-      }
       return "Błąd logowania: " + (err?.message || code);
     }
 
-    // Logowanie Google (wywoływane bezpośrednio w zdarzeniu click dla zgodności z Safari iOS)
+    // Logowanie i autoryzacja Dysku Google
     document.getElementById("login-btn").addEventListener("click", () => {
       authError.textContent = "";
-      signInWithPopup(auth, provider).catch((err) => {
-        authError.textContent = formatAuthError(err);
+      signInWithPopup(auth, provider)
+        .then((result) => {
+          const cred = GoogleAuthProvider.credentialFromResult(result);
+          if (cred?.accessToken) {
+            saveDriveToken(cred.accessToken);
+          }
+        })
+        .catch((err) => {
+          authError.textContent = formatAuthError(err);
+        });
+    });
+
+    function connectGoogleDrive(afterSuccessCallback) {
+      const authPromise = auth.currentUser
+        ? reauthenticateWithPopup(auth.currentUser, provider)
+        : signInWithPopup(auth, provider);
+
+      authPromise
+        .then((result) => {
+          const cred = GoogleAuthProvider.credentialFromResult(result);
+          if (cred?.accessToken) {
+            saveDriveToken(cred.accessToken);
+            if (typeof afterSuccessCallback === "function") {
+              afterSuccessCallback();
+            }
+          } else {
+            alert("Nie udało się uzyskać tokenu Dysku Google. Spróbuj ponownie.");
+          }
+        })
+        .catch((err) => {
+          alert(formatAuthError(err));
+        });
+    }
+
+    driveStatusBtn.addEventListener("click", () => {
+      connectGoogleDrive(() => {
+        showToastMessage("Połączono z Dyskiem Google.", 2500);
+      });
+    });
+
+    uploadReauthBtn.addEventListener("click", () => {
+      const saved = pendingFileAfterReauth;
+      connectGoogleDrive(() => {
+        if (saved) {
+          pendingFileAfterReauth = null;
+          processFileUpload(saved.file, saved.context);
+        } else {
+          hideToast();
+        }
       });
     });
 
@@ -772,6 +1076,7 @@
         unsubscribeSnapshot();
         unsubscribeSnapshot = null;
       }
+      clearDriveToken();
       signOut(auth);
     });
 
@@ -781,12 +1086,14 @@
         const allowedLower = ALLOWED_EMAILS.map((e) => e.toLowerCase());
         if (allowedLower.length > 0 && !allowedLower.includes(userEmail)) {
           authError.textContent = `Brak uprawnień dla konta: ${user.email}`;
+          clearDriveToken();
           signOut(auth);
           return;
         }
         currentUser = user;
         authScreen.classList.add("hidden");
         appShell.classList.remove("hidden");
+        updateDrivePillUI();
         checkLocalMigration();
         startRealtimeSync();
       } else {
@@ -808,7 +1115,7 @@
           const fromCache = snapshot.metadata.fromCache;
           syncDot.className = "sync-dot " + (fromCache ? "" : "online");
           syncText.textContent = fromCache
-            ? "Tryb offline (zapis lokalny)"
+            ? "Offline (zapis lokalny)"
             : `Zsynchronizowano (${currentUser.email})`;
           render();
           checkUrgentNotifications();
@@ -824,7 +1131,251 @@
       );
     }
 
-    // Obliczanie terminów
+    // =========================================================================
+    // INTEGRACJA Z DYSKIEM GOOGLE (REST API v3)
+    // =========================================================================
+    function showToastLoading(text) {
+      uploadSpinner.classList.remove("hidden");
+      uploadReauthBtn.classList.add("hidden");
+      uploadStatusText.textContent = text;
+      uploadToast.classList.remove("hidden");
+    }
+
+    function showToastNeedReauth(file, context) {
+      pendingFileAfterReauth = { file, context };
+      uploadSpinner.classList.add("hidden");
+      uploadStatusText.textContent = "Sesja Dysku Google wymaga odnowienia, aby wysłać plik:";
+      uploadReauthBtn.classList.remove("hidden");
+      uploadToast.classList.remove("hidden");
+    }
+
+    function showToastMessage(text, durationMs = 3000) {
+      uploadSpinner.classList.add("hidden");
+      uploadReauthBtn.classList.add("hidden");
+      uploadStatusText.textContent = text;
+      uploadToast.classList.remove("hidden");
+      if (durationMs > 0) {
+        setTimeout(() => {
+          if (uploadReauthBtn.classList.contains("hidden")) {
+            hideToast();
+          }
+        }, durationMs);
+      }
+    }
+
+    function hideToast() {
+      uploadToast.classList.add("hidden");
+    }
+
+    async function driveFetch(url, options, token) {
+      const res = await fetch(url, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(options.headers || {})
+        }
+      });
+      if (res.status === 401) {
+        clearDriveToken();
+        const err = new Error("DRIVE_UNAUTHORIZED");
+        err.code = "DRIVE_UNAUTHORIZED";
+        throw err;
+      }
+      if (!res.ok) {
+        const errBody = await res.text();
+        throw new Error(`Błąd Dysku Google (${res.status}): ${errBody}`);
+      }
+      return res.json();
+    }
+
+    async function findOrCreateFolder(folderName, parentId, token) {
+      const safeName = sanitizeDriveName(folderName) || "Bez nazwy";
+      const escapedForQuery = safeName.replace(/'/g, "\'");
+      let query = `name='${escapedForQuery}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+      if (parentId) {
+        query += ` and '${parentId}' in parents`;
+      }
+
+      const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name)&spaces=drive`;
+      const searchRes = await driveFetch(searchUrl, { method: "GET" }, token);
+
+      if (searchRes.files && searchRes.files.length > 0) {
+        return searchRes.files[0].id;
+      }
+
+      const body = {
+        name: safeName,
+        mimeType: "application/vnd.google-apps.folder"
+      };
+      if (parentId) {
+        body.parents = [parentId];
+      }
+
+      const created = await driveFetch(
+        "https://www.googleapis.com/drive/v3/files?fields=id,name",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        },
+        token
+      );
+      return created.id;
+    }
+
+    async function getEventDriveFolderId(ev, token) {
+      if (!cachedRootFolderId) {
+        cachedRootFolderId = await findOrCreateFolder(ROOT_DRIVE_FOLDER_NAME, null, token);
+      }
+      const eventFolderName = `${ev.eventDate || todayStr()} - ${ev.name || "Impreza"}`;
+      return await findOrCreateFolder(eventFolderName, cachedRootFolderId, token);
+    }
+
+    async function uploadFileToDrive(file, targetFileName, folderId, token) {
+      const metadata = {
+        name: sanitizeDriveName(targetFileName),
+        parents: [folderId]
+      };
+
+      const boundary = "-------fort_drive_boundary_" + Date.now();
+      const delimiter = `
+--${boundary}
+`;
+      const closeDelimiter = `
+--${boundary}--`;
+
+      const metadataPart =
+        delimiter +
+        "Content-Type: application/json; charset=UTF-8
+
+" +
+        JSON.stringify(metadata);
+
+      const fileHeaderPart =
+        delimiter +
+        `Content-Type: ${file.type || "application/octet-stream"}
+
+`;
+
+      const multipartBody = new Blob(
+        [metadataPart, fileHeaderPart, file, closeDelimiter],
+        { type: `multipart/related; boundary=${boundary}` }
+      );
+
+      return await driveFetch(
+        "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink,webContentLink",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": `multipart/related; boundary=${boundary}`
+          },
+          body: multipartBody
+        },
+        token
+      );
+    }
+
+    async function trashDriveFileQuietly(fileId, token) {
+      if (!fileId || !token) return;
+      try {
+        await driveFetch(
+          `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ trashed: true })
+          },
+          token
+        );
+      } catch (_) {}
+    }
+
+    // Wyzwalanie wyboru pliku po kliknięciu przycisku +
+    function triggerFilePicker(context) {
+      pendingUploadContext = context;
+      hiddenFileInput.value = "";
+      hiddenFileInput.click();
+    }
+
+    hiddenFileInput.addEventListener("change", () => {
+      const file = hiddenFileInput.files && hiddenFileInput.files[0];
+      if (!file || !pendingUploadContext) return;
+      const context = { ...pendingUploadContext };
+      pendingUploadContext = null;
+      processFileUpload(file, context);
+    });
+
+    async function processFileUpload(file, context) {
+      const token = getValidDriveToken();
+      if (!token) {
+        showToastNeedReauth(file, context);
+        return;
+      }
+
+      const ev = events.find((e) => e.id === context.eventId);
+      if (!ev) return;
+
+      const extMatch = (file.name || "").match(/\.[a-zA-Z0-9]+$/);
+      const ext = extMatch ? extMatch[0].toLowerCase() : file.type === "application/pdf" ? ".pdf" : ".jpg";
+
+      const docPrefix =
+        context.docType === "opinion"
+          ? `Opinia_${SERVICE_LABELS[context.serviceKey] || context.serviceKey}`
+          : "Decyzja_UM";
+
+      const targetFileName = `${docPrefix}_${todayStr()}${ext}`;
+
+      try {
+        showToastLoading(`Wysyłanie: ${docPrefix}...`);
+        const folderId = await getEventDriveFolderId(ev, token);
+        const uploaded = await uploadFileToDrive(file, targetFileName, folderId, token);
+
+        const fileMeta = {
+          id: uploaded.id,
+          name: uploaded.name || targetFileName,
+          webViewLink: uploaded.webViewLink || `https://drive.google.com/file/d/${uploaded.id}/view`,
+          uploadedAt: new Date().toISOString()
+        };
+
+        if (context.docType === "opinion") {
+          const oldFileId = ev.opinionFiles?.[context.serviceKey]?.id;
+          await updateDoc(doc(db, "events", ev.id), {
+            [`opinions.${context.serviceKey}`]: true,
+            [`opinionFiles.${context.serviceKey}`]: fileMeta,
+            updatedAt: new Date().toISOString(),
+            updatedBy: currentUser.email
+          });
+          if (oldFileId && oldFileId !== uploaded.id) {
+            trashDriveFileQuietly(oldFileId, token);
+          }
+        } else if (context.docType === "decision") {
+          const oldFileId = ev.decisionFile?.id;
+          await updateDoc(doc(db, "events", ev.id), {
+            decisionReceived: true,
+            decisionDate: todayStr(),
+            decisionFile: fileMeta,
+            updatedAt: new Date().toISOString(),
+            updatedBy: currentUser.email
+          });
+          if (oldFileId && oldFileId !== uploaded.id) {
+            trashDriveFileQuietly(oldFileId, token);
+          }
+        }
+
+        showToastMessage(`Zapisano na Dysku Google: ${fileMeta.name}`, 3200);
+      } catch (err) {
+        if (err.code === "DRIVE_UNAUTHORIZED") {
+          showToastNeedReauth(file, context);
+        } else {
+          console.error(err);
+          showToastMessage(`Błąd wysyłania: ${err.message}`, 6000);
+        }
+      }
+    }
+
+    // =========================================================================
+    // OBLICZANIE TERMINÓW I RENDEROWANIE
+    // =========================================================================
     function getEventMetrics(ev) {
       const submitDeadline = addDays(ev.eventDate, -30);
 
@@ -877,7 +1428,6 @@
       return `Za ${days} dni`;
     }
 
-    // Renderowanie widoku
     function render() {
       const q = searchQuery.trim().toLowerCase();
       const enriched = events.map((ev) => ({ ...ev, _m: getEventMetrics(ev) }));
@@ -913,9 +1463,48 @@
       eventsList.innerHTML = filtered.map((ev) => renderCard(ev)).join("");
     }
 
+    function renderOpinionSlot(safeId, key, label, isDone, fileMeta) {
+      const hasFile = Boolean(fileMeta && fileMeta.webViewLink);
+      const uploaded = Boolean(isDone || hasFile);
+
+      if (!uploaded) {
+        return `
+          <div class="opinion-slot">
+            <div class="opinion-name"><span>${label}</span></div>
+            <div class="slot-controls">
+              <button type="button" class="plus-upload-btn"
+                title="Dodaj zdjęcie, skan lub PDF (${label})"
+                aria-label="Dodaj plik dla ${label}"
+                data-action="upload-opinion" data-id="${safeId}" data-key="${key}">+</button>
+            </div>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="opinion-slot uploaded">
+          <div class="opinion-name"><span>✓ ${label}</span></div>
+          <div class="slot-controls">
+            ${
+              hasFile
+                ? `<a href="${escapeHtml(fileMeta.webViewLink)}" target="_blank" rel="noopener" class="file-view-link" title="Otwórz zapisany plik na Dysku Google">📄 Skan</a>`
+                : ""
+            }
+            <button type="button" class="plus-upload-btn small"
+              title="Podmień plik (${label})"
+              data-action="upload-opinion" data-id="${safeId}" data-key="${key}">+</button>
+            <button type="button" class="file-remove-btn"
+              title="Usuń załącznik (${label})"
+              data-action="remove-opinion" data-id="${safeId}" data-key="${key}">✕</button>
+          </div>
+        </div>
+      `;
+    }
+
     function renderCard(ev) {
       const m = ev._m;
       const ops = ev.opinions || { policja: false, straz: false, sanepid: false, pogotowie: false };
+      const opFiles = ev.opinionFiles || {};
       const safeId = escapeHtml(ev.id);
 
       let badgeHtml = "";
@@ -961,37 +1550,65 @@
             </div>
           </div>
 
+          <div class="opinions-section-label">Opinie służb (kliknij +, aby wgrać zdjęcie, skan lub PDF):</div>
           <div class="opinions-grid">
-            ${renderOpinionCheckbox(safeId, "policja", "Policja", ops.policja)}
-            ${renderOpinionCheckbox(safeId, "straz", "Straż Pożarna", ops.straz)}
-            ${renderOpinionCheckbox(safeId, "sanepid", "Sanepid", ops.sanepid)}
-            ${renderOpinionCheckbox(safeId, "pogotowie", "Pogotowie", ops.pogotowie)}
+            ${renderOpinionSlot(safeId, "policja", "Policja", ops.policja, opFiles.policja)}
+            ${renderOpinionSlot(safeId, "straz", "Straż Pożarna", ops.straz, opFiles.straz)}
+            ${renderOpinionSlot(safeId, "sanepid", "Sanepid", ops.sanepid, opFiles.sanepid)}
+            ${renderOpinionSlot(safeId, "pogotowie", "Pogotowie", ops.pogotowie, opFiles.pogotowie)}
           </div>
 
-          <label class="decision-box">
-            <span>Otrzymano Decyzję UM (archiwizuj)</span>
-            <input type="checkbox" style="width:20px; height:20px; accent-color:#10b981;"
-              data-action="toggle-decision" data-id="${safeId}" />
-          </label>
+          <div class="decision-box">
+            <span>Decyzja UM (wgraj skan / PDF, aby zakończyć)</span>
+            <button type="button" class="plus-upload-btn"
+              title="Wgraj zdjęcie, skan lub PDF Decyzji UM"
+              aria-label="Wgraj Decyzję UM"
+              data-action="upload-decision" data-id="${safeId}">+</button>
+          </div>
         `;
       } else {
         badgeHtml = `<span class="badge badge-done">Decyzja wydana</span>`;
+        const decFile = ev.decisionFile;
+        const opinionLinks = Object.entries(SERVICE_LABELS)
+          .map(([key, label]) => {
+            const f = opFiles[key];
+            if (f && f.webViewLink) {
+              return `<a href="${escapeHtml(f.webViewLink)}" target="_blank" rel="noopener" class="file-view-link">📄 ${label}</a>`;
+            }
+            if (ops[key]) {
+              return `<span class="badge badge-done" style="font-size:11px;">${label} ✓</span>`;
+            }
+            return "";
+          })
+          .filter(Boolean)
+          .join("");
+
         bodyHtml = `
           <div class="deadlines-box">
             <div class="deadline-row">
               <span>Złożono:</span>
               <strong>${formatDatePL(parseLocalDate(ev.submittedDate))}</strong>
             </div>
-            <div class="deadline-row">
-              <span>Opinie:</span>
-              <span>Policja ✓ · PSP ✓ · Sanepid ✓ · Pogotowie ✓</span>
+          </div>
+
+          ${opinionLinks ? `<div class="archived-files-list">${opinionLinks}</div>` : ""}
+
+          <div class="decision-box completed">
+            <span>✓ Decyzja UM</span>
+            <div class="slot-controls">
+              ${
+                decFile && decFile.webViewLink
+                  ? `<a href="${escapeHtml(decFile.webViewLink)}" target="_blank" rel="noopener" class="file-view-link">📄 Otwórz decyzję</a>`
+                  : ""
+              }
+              <button type="button" class="plus-upload-btn small"
+                title="Podmień plik Decyzji UM"
+                data-action="upload-decision" data-id="${safeId}">+</button>
+              <button type="button" class="file-remove-btn"
+                title="Usuń Decyzję UM i cofnij do Złożonych"
+                data-action="remove-decision" data-id="${safeId}">✕</button>
             </div>
           </div>
-          <label class="decision-box" style="background:rgba(16,185,129,0.12); border-color:rgba(16,185,129,0.4);">
-            <span>Decyzja UM odebrana</span>
-            <input type="checkbox" checked style="width:20px; height:20px; accent-color:#10b981;"
-              data-action="toggle-decision" data-id="${safeId}" />
-          </label>
         `;
       }
 
@@ -1017,20 +1634,10 @@
       `;
     }
 
-    function renderOpinionCheckbox(safeId, key, label, checked) {
-      return `
-        <label class="check-pill ${checked ? "checked" : ""}">
-          <input type="checkbox" ${checked ? "checked" : ""}
-            data-action="toggle-opinion" data-id="${safeId}" data-key="${key}" />
-          <span>${label}</span>
-        </label>
-      `;
-    }
-
     // Delegacja zdarzeń na liście kart
     eventsList.addEventListener("click", async (e) => {
       const btn = e.target.closest("[data-action]");
-      if (!btn || btn.tagName === "INPUT") return;
+      if (!btn) return;
 
       const action = btn.dataset.action;
       const id = btn.dataset.id;
@@ -1042,36 +1649,50 @@
           updatedAt: new Date().toISOString(),
           updatedBy: currentUser.email
         });
+      } else if (action === "upload-opinion") {
+        triggerFilePicker({
+          eventId: id,
+          docType: "opinion",
+          serviceKey: btn.dataset.key
+        });
+      } else if (action === "remove-opinion") {
+        const key = btn.dataset.key;
+        const label = SERVICE_LABELS[key] || key;
+        if (confirm(`Usunąć zapisaną opinię (${label})?`)) {
+          const ev = events.find((item) => item.id === id);
+          const oldFileId = ev?.opinionFiles?.[key]?.id;
+          await updateDoc(doc(db, "events", id), {
+            [`opinions.${key}`]: false,
+            [`opinionFiles.${key}`]: deleteField(),
+            updatedAt: new Date().toISOString(),
+            updatedBy: currentUser.email
+          });
+          trashDriveFileQuietly(oldFileId, getValidDriveToken());
+        }
+      } else if (action === "upload-decision") {
+        triggerFilePicker({
+          eventId: id,
+          docType: "decision"
+        });
+      } else if (action === "remove-decision") {
+        if (confirm("Usunąć załącznik Decyzji UM i przenieść imprezę z powrotem do zakładki Złożone?")) {
+          const ev = events.find((item) => item.id === id);
+          const oldFileId = ev?.decisionFile?.id;
+          await updateDoc(doc(db, "events", id), {
+            decisionReceived: false,
+            decisionDate: "",
+            decisionFile: deleteField(),
+            updatedAt: new Date().toISOString(),
+            updatedBy: currentUser.email
+          });
+          trashDriveFileQuietly(oldFileId, getValidDriveToken());
+        }
       } else if (action === "edit") {
         openEditModal(id);
       } else if (action === "delete") {
         if (confirm("Usunąć tę imprezę z bazy na wszystkich urządzeniach?")) {
           await deleteDoc(doc(db, "events", id));
         }
-      }
-    });
-
-    eventsList.addEventListener("change", async (e) => {
-      const input = e.target.closest("input[data-action]");
-      if (!input) return;
-
-      const action = input.dataset.action;
-      const id = input.dataset.id;
-
-      if (action === "toggle-opinion") {
-        const key = input.dataset.key;
-        await updateDoc(doc(db, "events", id), {
-          [`opinions.${key}`]: input.checked,
-          updatedAt: new Date().toISOString(),
-          updatedBy: currentUser.email
-        });
-      } else if (action === "toggle-decision") {
-        await updateDoc(doc(db, "events", id), {
-          decisionReceived: input.checked,
-          decisionDate: input.checked ? todayStr() : "",
-          updatedAt: new Date().toISOString(),
-          updatedBy: currentUser.email
-        });
       }
     });
 
@@ -1199,7 +1820,7 @@
     function findLegacyLocalEvents() {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (!key || key.startsWith("firebase")) continue;
+        if (!key || key.startsWith("firebase") || key.startsWith("fort_gdrive")) continue;
         try {
           const parsed = JSON.parse(localStorage.getItem(key));
           if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].eventDate && parsed[0].name) {
